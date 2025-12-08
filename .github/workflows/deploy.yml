@@ -32,11 +32,11 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        working-directory: Physical-AI-Humanoid-Robotics-Textbook/website
+        working-directory: /website
         run: npm ci
 
       - name: Build
-        working-directory: Physical-AI-Humanoid-Robotics-Textbook/website
+        working-directory: /website
         run: npm run build
 
       - name: Setup Pages
