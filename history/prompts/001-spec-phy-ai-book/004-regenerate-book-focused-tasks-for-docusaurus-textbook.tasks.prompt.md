@@ -24,7 +24,7 @@ tests:
 ## Prompt
 
 Generate an actionable, dependency-ordered tasks.md for the feature based on available design artifacts.
-Context for task generation: tasks.md is half book-focused and hald capstone project-focused, However i just only want to create docusaurus book not any project, so please maki it completely docusaurus book focused
+Context for task generation: tasks.md is half book-focused and hald capstone project-focused, However i just only want to create docusaurus book not any project, so please make it completely docusaurus book focused
 
 ## Response snapshot
 

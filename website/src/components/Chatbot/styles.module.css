@@ -1,0 +1,123 @@
+/* Chatbot/styles.module.css */
+
+.chatButton {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: var(--ifm-color-primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  transition: transform 0.2s;
+}
+
+.chatButton:hover {
+  transform: scale(1.1);
+}
+
+.chatWindow {
+  position: fixed;
+  bottom: 100px;
+  right: 30px;
+  width: 370px;
+  max-width: 90vw;
+  height: 500px;
+  max-height: 70vh;
+  background-color: var(--ifm-background-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+}
+
+.chatHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background-color: var(--ifm-color-emphasis-100);
+  border-bottom: 1px solid var(--ifm-color-emphasis-300);
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.chatHeader h3 {
+  margin: 0;
+  font-size: 1.1em;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  cursor: pointer;
+  color: var(--ifm-font-color-base);
+}
+
+.chatMessages {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.message {
+  padding: 10px 15px;
+  border-radius: 15px;
+  max-width: 80%;
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+
+.bot {
+  background-color: var(--ifm-color-emphasis-200);
+  align-self: flex-start;
+  border-bottom-left-radius: 2px;
+}
+
+.user {
+  background-color: var(--ifm-color-primary);
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 2px;
+}
+
+.chatInputForm {
+  display: flex;
+  padding: 10px;
+  border-top: 1px solid var(--ifm-color-emphasis-300);
+}
+
+.chatInputForm input {
+  flex-grow: 1;
+  padding: 10px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 5px;
+  margin-right: 10px;
+}
+
+.chatInputForm button {
+  padding: 10px 15px;
+  border: none;
+  background-color: var(--ifm-color-primary);
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.chatInputForm button:disabled {
+  background-color: var(--ifm-color-emphasis-500);
+  cursor: not-allowed;
+}
