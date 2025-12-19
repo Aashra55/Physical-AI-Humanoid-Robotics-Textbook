@@ -34,32 +34,48 @@ const Chatbot = () => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
+    console.log("1. handleSendMessage started.");
+    if (!inputValue.trim()) {
+      console.log("Input is empty, returning.");
+      return;
+    }
 
     const userMessage = { sender: 'user', text: inputValue };
     setMessages((prev) => [...prev, userMessage]);
+    
+    // Use a temporary variable for the query to avoid a race condition
+    const query = inputValue;
     setInputValue('');
+    
+    console.log("2. Set isLoading to true.");
     setIsLoading(true);
 
     try {
+      console.log("3. Attempting to fetch from backend at http://127.0.0.1:8000/chat...");
       const response = await fetch('http://127.0.0.1:8000/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: inputValue, selected_text: null }),
+        body: JSON.stringify({ query: query, selected_text: null }),
       });
+      console.log("4. Fetch call completed. Response received:", response);
 
       if (!response.ok) {
+        console.error("5a. Response was not OK. Status:", response.status);
         throw new Error(`API request failed with status ${response.status}`);
       }
 
+      console.log("5b. Response is OK. Parsing JSON...");
       const data = await response.json();
+      console.log("6. JSON parsed:", data);
+
       const botMessage = { sender: 'bot', text: data.response };
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
-      console.error('Chat API error:', error);
+      console.error('7. CATCH BLOCK: An error occurred:', error);
       const errorMessage = { sender: 'bot', text: 'Sorry, I am having trouble connecting to the server.' };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
+      console.log("8. FINALLY BLOCK: Set isLoading to false.");
       setIsLoading(false);
     }
   };
