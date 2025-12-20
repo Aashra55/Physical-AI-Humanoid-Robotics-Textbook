@@ -1,1 +1,11 @@
+fastapi
+uvicorn
 gunicorn
+python-dotenv
+openai
+sentence-transformers
+qdrant-client
+psycopg2-binary
+beautifulsoup4
+markdown
+pydantic-settings
