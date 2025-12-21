@@ -1,3 +1,4 @@
+# Main FastAPI application for the RAG Chatbot
 import os
 import json
 from fastapi import FastAPI, HTTPException
