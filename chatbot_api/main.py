@@ -83,10 +83,10 @@ async def chat(request: ChatRequest):
     search_result = qdrant_cli.search(
         collection_name=settings.QDRANT_COLLECTION_NAME,
         query_vector=query_embedding,
-        limit=5
+        limit=5  # Retrieve top 5 most relevant chunks
     )
 
-    retrieved_doc_ids = [hit.payload['text_id'] for hit in search_result if hit.payload and 'text_id' in hit.payload]
+    retrieved_doc_ids = [hit.id for hit in search_result]
     
     # Simple connection acquisition from pool
     conn = db_conn_pool.pop()
@@ -96,6 +96,7 @@ async def chat(request: ChatRequest):
         db_conn_pool.append(conn) # Return connection to pool
 
     if request.selected_text:
+        # If user selected text, use it as the primary context
         context = request.selected_text
         print("Using user-selected text as context.")
     elif retrieved_texts:
