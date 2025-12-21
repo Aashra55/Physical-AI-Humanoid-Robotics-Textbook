@@ -49,8 +49,8 @@ const Chatbot = () => {
     setIsLoading(true);
 
     try {
-      console.log("3. Attempting to fetch from backend at http://127.0.0.1:8000/chat...");
-      const response = await fetch('http://127.0.0.1:8000/chat', {
+      console.log("3. Attempting to fetch from backend at https://aashra-my-rag-chatbot-api.hf.space/chat...");
+      const response = await fetch('https://aashra-my-rag-chatbot-api.hf.space/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: query, selected_text: null }),
