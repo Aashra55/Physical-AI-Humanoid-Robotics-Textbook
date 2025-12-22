@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.concurrency import run_in_threadpool
 
 from sentence_transformers import SentenceTransformer
 import litellm
@@ -95,16 +96,27 @@ class ChatResponse(BaseModel):
 # -------------------------------
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
+
     if not all([embedding_model, qdrant_cli, db_conn]):
         raise HTTPException(
             status_code=503,
             detail="RAG components not initialized",
         )
 
-    # 1️⃣ Embed query
-    query_embedding = embedding_model.encode(request.query).tolist()
+    # 1️⃣ Embed query (HF-safe)
+    try:
+        query_embedding = await run_in_threadpool(
+            embedding_model.encode,
+            request.query
+        )
+        query_embedding = query_embedding.tolist()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Embedding failed: {e}",
+        )
 
-    # 2️⃣ Vector search (CORRECT QDRANT API)
+    # 2️⃣ Qdrant vector search
     try:
         search_result = qdrant_cli.search(
             collection_name=settings.QDRANT_COLLECTION_NAME,
@@ -118,19 +130,22 @@ async def chat(request: ChatRequest):
             detail=f"Qdrant search failed: {e}",
         )
 
-    # 3️⃣ Extract IDs + sources safely
+    # 3️⃣ Extract document IDs & sources (SAFE)
     retrieved_doc_ids = [hit.id for hit in search_result]
 
     retrieved_sources = [
-        hit.payload.get("source")
+        hit.payload["source"]
         for hit in search_result
-        if hit.payload and "source" in hit.payload
+        if hit.payload and isinstance(hit.payload.get("source"), str)
     ]
     unique_sources = sorted(set(retrieved_sources))
 
     # 4️⃣ Fetch documents from DB
     try:
-        retrieved_texts = get_document_content(db_conn, retrieved_doc_ids)
+        retrieved_texts = get_document_content(
+            db_conn,
+            retrieved_doc_ids
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -154,7 +169,7 @@ Question:
 Answer:
 """.strip()
 
-    # 6️⃣ Gemini response
+    # 6️⃣ Gemini generation
     try:
         response = litellm.completion(
             model="gemini/gemini-1.5-flash-latest",
@@ -179,4 +194,3 @@ Answer:
 @app.get("/")
 def root():
     return {"status": "ok"}
-
