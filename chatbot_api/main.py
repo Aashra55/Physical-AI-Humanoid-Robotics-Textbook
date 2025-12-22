@@ -74,11 +74,14 @@ def chat(request: ChatRequest):
     query_embedding = embedding_model.encode(request.query).tolist()
 
     # 2. Retrieve relevant chunks
-    search_result = qdrant_cli.search(
+    # Using a different, more explicit search method for Qdrant
+    from qdrant_client.http import models
+
+    search_result = qdrant_cli.search_points(
         collection_name=settings.QDRANT_COLLECTION_NAME,
         query_vector=query_embedding,
         limit=5,
-        with_payload=True 
+        with_payload=True
     )
     
     retrieved_doc_ids = [hit.id for hit in search_result]
