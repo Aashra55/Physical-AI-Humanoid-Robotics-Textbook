@@ -73,12 +73,12 @@ def chat(request: ChatRequest):
     # 1. Embed user query
     query_embedding = embedding_model.encode(request.query).tolist()
 
-    # 2. Retrieve relevant chunks from Qdrant
+    # 2. Retrieve relevant chunks
     search_result = qdrant_cli.search(
         collection_name=settings.QDRANT_COLLECTION_NAME,
         query_vector=query_embedding,
         limit=5,
-        with_payload=True
+        with_payload=True 
     )
     
     retrieved_doc_ids = [hit.id for hit in search_result]
