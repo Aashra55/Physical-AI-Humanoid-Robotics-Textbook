@@ -200,7 +200,7 @@ Answer clearly and concisely.
         raise HTTPException(500, f"LLM failed: {e}")
 
     return ChatResponse(
-        response=llm_response,
+        response="TEST OK: Qdrant + DB working",
         sources=unique_sources,
     )
 
