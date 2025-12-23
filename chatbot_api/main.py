@@ -210,3 +210,9 @@ Answer clearly and concisely.
 @app.get("/")
 def root():
     return {"status": "ok"}
+
+@app.get("/test-embed")
+def test_embed():
+    vec = embedding_model.encode("hello")
+    return {"len": len(vec)}
+
