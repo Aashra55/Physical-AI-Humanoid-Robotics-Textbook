@@ -20,16 +20,15 @@ from core.db import (
 )
 
 # -------------------------------
-# Load environment variables
+# Load env
 # -------------------------------
 load_dotenv()
 
 # -------------------------------
-# FastAPI app
+# App
 # -------------------------------
 app = FastAPI(
     title="RAG Chatbot API",
-    description="RAG chatbot using FastAPI, Qdrant, Sentence Transformers, and Gemini",
     version="1.0.0",
 )
 
@@ -52,35 +51,44 @@ qdrant_cli = None
 db_conn = None
 
 # -------------------------------
-# Startup / Shutdown
+# Startup
 # -------------------------------
 @app.on_event("startup")
 def startup_event():
     global embedding_model, qdrant_cli, db_conn
 
-    print("🔄 Initializing RAG components...")
+    print("🔄 Starting RAG backend...")
 
-    embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-    print("✅ Embedding model loaded")
+    try:
+        embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+        print("✅ Embedding model loaded")
+    except Exception as e:
+        print("❌ Embedding load failed:", e)
 
-    os.environ["GEMINI_API_KEY"] = settings.GEMINI_API_KEY
+    os.environ["GEMINI_API_KEY"] = settings.GEMINI_API_KEY or ""
     print("✅ Gemini API key set")
 
-    qdrant_cli = get_qdrant_client()
-    print("✅ Qdrant client initialized")
+    try:
+        qdrant_cli = get_qdrant_client()
+        print("✅ Qdrant connected")
+    except Exception as e:
+        print("❌ Qdrant connection failed:", e)
 
-    db_conn = get_db_connection()
-    print("✅ PostgreSQL connected")
+    try:
+        db_conn = get_db_connection()
+        print("✅ PostgreSQL connected")
+    except Exception as e:
+        print("❌ DB connection failed:", e)
 
 
 @app.on_event("shutdown")
 def shutdown_event():
     if db_conn:
         db_conn.close()
-        print("🛑 Database connection closed")
+        print("🛑 DB connection closed")
 
 # -------------------------------
-# Request / Response Models
+# Models
 # -------------------------------
 class ChatRequest(BaseModel):
     query: str
@@ -92,31 +100,32 @@ class ChatResponse(BaseModel):
     sources: list[str]
 
 # -------------------------------
-# Chat Endpoint
+# Chat API
 # -------------------------------
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
 
-    if not all([embedding_model, qdrant_cli, db_conn]):
-        raise HTTPException(
-            status_code=503,
-            detail="RAG components not initialized",
-        )
+    print("📩 Incoming query:", request.query)
 
-    # 1️⃣ Embed query (HF-safe)
+    if not request.query.strip():
+        raise HTTPException(status_code=400, detail="Query is empty")
+
+    if not all([embedding_model, qdrant_cli, db_conn]):
+        raise HTTPException(status_code=503, detail="RAG not initialized")
+
+    # 1️⃣ Embed
     try:
         query_embedding = await run_in_threadpool(
             embedding_model.encode,
             request.query
         )
         query_embedding = query_embedding.tolist()
+        print("✅ Embedding done")
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Embedding failed: {e}",
-        )
+        print("❌ Embedding error:", e)
+        raise HTTPException(500, f"Embedding failed: {e}")
 
-    # 2️⃣ Qdrant vector search
+    # 2️⃣ Qdrant Search
     try:
         search_result = qdrant_cli.search(
             collection_name=settings.QDRANT_COLLECTION_NAME,
@@ -124,52 +133,60 @@ async def chat(request: ChatRequest):
             limit=5,
             with_payload=True,
         )
+        print(f"🔍 Qdrant hits: {len(search_result)}")
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Qdrant search failed: {e}",
-        )
+        print("❌ Qdrant error:", e)
+        raise HTTPException(500, f"Qdrant search failed: {e}")
 
-    # 3️⃣ Extract document IDs & sources (SAFE)
-    retrieved_doc_ids = [hit.id for hit in search_result]
+    # 3️⃣ Extract IDs + sources (SAFE)
+    retrieved_doc_ids = []
+    retrieved_sources = []
 
-    retrieved_sources = [
-        hit.payload["source"]
-        for hit in search_result
-        if hit.payload and isinstance(hit.payload.get("source"), str)
-    ]
+    for hit in search_result:
+        retrieved_doc_ids.append(hit.id)
+
+        if hit.payload:
+            src = hit.payload.get("source")
+            if isinstance(src, str):
+                retrieved_sources.append(src)
+
     unique_sources = sorted(set(retrieved_sources))
 
-    # 4️⃣ Fetch documents from DB
+    # 4️⃣ DB Fetch
     try:
-        retrieved_texts = get_document_content(
-            db_conn,
-            retrieved_doc_ids
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Database retrieval failed: {e}",
-        )
+        if retrieved_doc_ids:
+            retrieved_texts = get_document_content(
+                db_conn,
+                retrieved_doc_ids
+            )
+        else:
+            retrieved_texts = []
 
+        print(f"📄 Docs fetched: {len(retrieved_texts)}")
+    except Exception as e:
+        print("❌ DB error:", e)
+        raise HTTPException(500, f"DB retrieval failed: {e}")
+
+    # 5️⃣ Context
     context = (
         "\n\n".join(retrieved_texts)
         if retrieved_texts
         else "No relevant documents found."
     )
 
-    # 5️⃣ Prompt
     prompt = f"""
+You are a helpful assistant.
+
 Context:
 {context}
 
 Question:
 {request.query}
 
-Answer:
+Answer clearly and concisely.
 """.strip()
 
-    # 6️⃣ Gemini generation
+    # 6️⃣ Gemini
     try:
         response = litellm.completion(
             model="gemini/gemini-1.5-flash-latest",
@@ -177,11 +194,10 @@ Answer:
             temperature=0.7,
         )
         llm_response = response.choices[0].message.content
+        print("✅ LLM response generated")
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"LLM generation failed: {e}",
-        )
+        print("❌ Gemini error:", e)
+        raise HTTPException(500, f"LLM failed: {e}")
 
     return ChatResponse(
         response=llm_response,
@@ -189,7 +205,7 @@ Answer:
     )
 
 # -------------------------------
-# Health Check
+# Health
 # -------------------------------
 @app.get("/")
 def root():
