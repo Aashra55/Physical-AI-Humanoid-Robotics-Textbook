@@ -200,7 +200,7 @@ Answer clearly and concisely.
         raise HTTPException(500, f"LLM failed: {e}")
 
     return ChatResponse(
-        response="TEST OK: Qdrant + DB working",
+        response=llm_response,
         sources=unique_sources,
     )
 
@@ -216,3 +216,10 @@ def test_embed():
     vec = embedding_model.encode("hello")
     return {"len": len(vec)}
 
+@app.get("/test-qdrant")
+def test_qdrant():
+    try:
+        collections = qdrant_cli.get_collections()
+        return {"collections": [c.name for c in collections.collections]}
+    except Exception as e:
+        return {"error": str(e)}
