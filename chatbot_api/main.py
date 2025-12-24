@@ -205,6 +205,17 @@ Answer clearly and concisely.
     )
 
 # -------------------------------
+# Setup
+# -------------------------------
+from .core.indexing import setup_databases
+
+@app.post("/setup")
+def setup():
+    setup_databases()
+    return {"status": "ok"}
+
+
+# -------------------------------
 # Health
 # -------------------------------
 @app.get("/")

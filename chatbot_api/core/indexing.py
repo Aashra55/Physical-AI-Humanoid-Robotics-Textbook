@@ -58,9 +58,7 @@ def setup_databases():
         collection_info = qdrant_cli.get_collection(collection_name=collection_name)
         current_vector_size = collection_info.vectors_config.params.size
         
-        if current_vector_size == correct_vector_size:
-            print(f"Qdrant collection '{collection_name}' already exists with the correct vector size ({correct_vector_size}).")
-        else:
+        if current_vector_size != correct_vector_size:
             print(f"Qdrant collection '{collection_name}' exists with the wrong vector size ({current_vector_size}). Deleting and recreating.")
             qdrant_cli.delete_collection(collection_name=collection_name)
             qdrant_cli.create_collection(
@@ -68,6 +66,13 @@ def setup_databases():
                 vectors_config=qdrant_client.models.VectorParams(size=correct_vector_size, distance=qdrant_client.models.Distance.COSINE),
             )
             print(f"Qdrant collection '{collection_name}' recreated with correct vector size ({correct_vector_size}).")
+        else:
+            print(f"Qdrant collection '{collection_name}' already exists with the correct vector size ({correct_vector_size}).")
 
     except Exception: # If collection doesn't exist at all
         print(f"Qdrant collection '{collection_name}' does not exist. Creating it.")
+        qdrant_cli.create_collection(
+            collection_name=collection_name,
+            vectors_config=qdrant_client.models.VectorParams(size=correct_vector_size, distance=qdrant_client.models.Distance.COSINE),
+        )
+        print(f"Qdrant collection '{collection_name}' created with vector size ({correct_vector_size}).")
