@@ -81,3 +81,84 @@ def setup_databases():
             logging.info(f"Qdrant collection '{collection_name}' created with vector size ({correct_vector_size}).")
     except Exception as e:
         logging.error(f"Error setting up databases: {e}", exc_info=True)
+
+
+def chunk_text(text: str, chunk_size: int = 500, overlap_size: int = 100):
+    """
+    Splits text into chunks of a specified size with overlap.
+    A more sophisticated chunking strategy may be needed for production.
+    """
+    if not text:
+        return []
+
+    chunks = []
+    current_pos = 0
+    while current_pos < len(text):
+        end_pos = min(current_pos + chunk_size, len(text))
+        chunk = text[current_pos:end_pos]
+        chunks.append(chunk)
+        if end_pos == len(text):
+            break
+        current_pos += chunk_size - overlap_size
+        if current_pos < 0: # Handle cases where overlap_size > chunk_size, or very small chunks
+            current_pos = 0
+    return chunks
+
+def index_documents():
+    logging.info("Indexing documents...")
+    try:
+        embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+        conn = get_db_connection()
+        qdrant_cli = get_qdrant_client()
+        collection_name = settings.QDRANT_COLLECTION_NAME
+
+        cur = conn.cursor()
+
+        docs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "website", "docs"))
+        markdown_files = glob.glob(os.path.join(docs_path, "**", "*.md"), recursive=True)
+
+        for md_file in markdown_files:
+            with open(md_file, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            # Convert markdown to plain text (or handle markdown directly)
+            html = markdown.markdown(content)
+            soup = BeautifulSoup(html, "html.parser")
+            text = soup.get_text()
+
+            # Simple chunking
+            chunks = chunk_text(text) # Implement a proper chunking strategy
+
+            source = os.path.relpath(md_file, docs_path)
+
+            for i, chunk in enumerate(chunks):
+                doc_id = uuid.uuid4()
+                embedding = embedding_model.encode(chunk).tolist()
+
+                # Insert into Postgres
+                cur.execute(
+                    """
+                    INSERT INTO documents (id, content, source, chunk_num)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (str(doc_id), chunk, source, i)
+                )
+
+                # Insert into Qdrant
+                qdrant_cli.upsert(
+                    collection_name=collection_name,
+                    wait=True,
+                    points=[
+                        qdrant_client.models.PointStruct(
+                            id=str(doc_id),
+                            vector=embedding,
+                            payload={"source": source, "chunk_num": i},
+                        )
+                    ],
+                )
+        conn.commit()
+        cur.close()
+        conn.close()
+        logging.info("Documents indexed successfully.")
+    except Exception as e:
+        logging.error(f"Error indexing documents: {e}", exc_info=True)

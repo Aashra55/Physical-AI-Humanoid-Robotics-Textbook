@@ -235,11 +235,12 @@ def get_logs():
 # -------------------------------
 # Setup
 # -------------------------------
-from core.indexing import setup_databases
+from core.indexing import setup_databases, index_documents
 
 @app.post("/setup")
 def setup():
     setup_databases()
+    index_documents() # Call the new indexing function
     return {"status": "ok"}
 
 # -------------------------------
