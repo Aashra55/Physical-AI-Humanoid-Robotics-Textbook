@@ -127,9 +127,9 @@ async def chat(request: ChatRequest):
 
     # 2️⃣ Qdrant Search
     try:
-        search_result = qdrant_cli.search(
+        search_result = qdrant_cli.query_points(
             collection_name=settings.QDRANT_COLLECTION_NAME,
-            query_vector=query_embedding,
+            query=query_embedding,
             limit=5,
             with_payload=True,
         )
