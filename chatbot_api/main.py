@@ -143,7 +143,8 @@ async def chat(request: ChatRequest):
             limit=5,
             with_payload=True,
         )
-        print(f"🔍 Qdrant hits: {len(search_result)}")
+        points = search_result.points
+        print(f"🔍 Qdrant hits: {len(points)}")
     except Exception as e:
         print("❌ Qdrant error:", e)
         raise HTTPException(500, f"Qdrant search failed: {e}")
@@ -152,7 +153,7 @@ async def chat(request: ChatRequest):
     retrieved_doc_ids = []
     retrieved_sources = []
 
-    for hit in search_result:
+    for hit in points:
         retrieved_doc_ids.append(hit.id)
 
         if hit.payload:
