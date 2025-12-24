@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import os # Added for debug
 
@@ -17,6 +18,13 @@ class Settings(BaseSettings):
     # Application settings
     QDRANT_COLLECTION_NAME: str = "rag_chatbot_collection"
     DOCS_PATH: str = "../website/docs"
+
+    @field_validator('*', mode='before')
+    @classmethod
+    def strip_whitespace(cls, v):
+        if isinstance(v, str):
+            return v.strip()
+        return v
 
 
 # Create a single instance of the settings to be used throughout the application
