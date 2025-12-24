@@ -64,7 +64,7 @@ db_conn = None
 # Startup
 # -------------------------------
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     global embedding_model, qdrant_cli, db_conn
 
     print("🔄 Starting RAG backend...")
@@ -73,6 +73,7 @@ def startup_event():
         embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
         print("✅ Embedding model loaded")
     except Exception as e:
+        embedding_model = None
         print("❌ Embedding load failed:", e)
 
     os.environ["GEMINI_API_KEY"] = settings.GEMINI_API_KEY or ""
@@ -82,14 +83,15 @@ def startup_event():
         qdrant_cli = get_qdrant_client()
         print("✅ Qdrant connected")
     except Exception as e:
+        qdrant_cli = None
         print("❌ Qdrant connection failed:", e)
 
     try:
         db_conn = get_db_connection()
         print("✅ PostgreSQL connected")
     except Exception as e:
+        db_conn = None
         print("❌ DB connection failed:", e)
-
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -120,8 +122,15 @@ async def chat(request: ChatRequest):
     if not request.query.strip():
         raise HTTPException(status_code=400, detail="Query is empty")
 
-    if not all([embedding_model, qdrant_cli, db_conn]):
-        raise HTTPException(status_code=503, detail="RAG not initialized")
+    # SAFETY CHECKS
+    if embedding_model is None:
+        raise HTTPException(503, "Embedding model not loaded")
+
+    if qdrant_cli is None:
+        raise HTTPException(503, "Qdrant not connected")
+
+    if db_conn is None:
+        raise HTTPException(503, "Database not connected")
 
     # 1️⃣ Embed
     try:
@@ -135,21 +144,21 @@ async def chat(request: ChatRequest):
         print("❌ Embedding error:", e)
         raise HTTPException(500, f"Embedding failed: {e}")
 
-    # 2️⃣ Qdrant Search
+    # 2️⃣ Qdrant Search (compatible version)
     try:
-        search_result = qdrant_cli.query_points(
+        search_result = qdrant_cli.search(
             collection_name=settings.QDRANT_COLLECTION_NAME,
-            query=query_embedding,
+            query_vector=query_embedding,
             limit=5,
             with_payload=True,
         )
-        points = search_result.points
+        points = search_result
         print(f"🔍 Qdrant hits: {len(points)}")
     except Exception as e:
         print("❌ Qdrant error:", e)
         raise HTTPException(500, f"Qdrant search failed: {e}")
 
-    # 3️⃣ Extract IDs + sources (SAFE)
+    # 3️⃣ Extract IDs + sources
     retrieved_doc_ids = []
     retrieved_sources = []
 
@@ -233,7 +242,6 @@ def setup():
     setup_databases()
     return {"status": "ok"}
 
-
 # -------------------------------
 # Health
 # -------------------------------
@@ -243,6 +251,8 @@ def root():
 
 @app.get("/test-embed")
 def test_embed():
+    if embedding_model is None:
+        return {"error": "Embedding not loaded"}
     vec = embedding_model.encode("hello")
     return {"len": len(vec)}
 
