@@ -1,6 +1,16 @@
 # ===============================
 # RAG Chatbot – FastAPI Backend
 # ===============================
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler("space.log"),
+        logging.StreamHandler()
+    ]
+)
 
 import os
 from fastapi import FastAPI, HTTPException
@@ -203,6 +213,14 @@ Answer clearly and concisely.
         response=llm_response,
         sources=unique_sources,
     )
+
+# -------------------------------
+# Logs
+# -------------------------------
+@app.get("/logs")
+def get_logs():
+    with open("space.log", "r") as f:
+        return f.read()
 
 # -------------------------------
 # Setup
