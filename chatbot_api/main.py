@@ -207,7 +207,7 @@ Answer clearly and concisely.
 # -------------------------------
 # Setup
 # -------------------------------
-from .core.indexing import setup_databases
+from core.indexing import setup_databases
 
 @app.post("/setup")
 def setup():
