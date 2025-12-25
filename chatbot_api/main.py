@@ -136,15 +136,15 @@ async def chat(request: ChatRequest):
         print("❌ Embedding error:", e)
         raise HTTPException(500, f"Embedding failed: {e}")
 
-    # 2️⃣ Qdrant Search (compatible version)
+    # 2️⃣ Qdrant Search
     try:
-        search_result = qdrant_cli.search(
+        search_result = qdrant_cli.query_points(
             collection_name=settings.QDRANT_COLLECTION_NAME,
-            query_vector=query_embedding,
+            query=query_embedding,
             limit=5,
             with_payload=True,
         )
-        points = search_result
+        points = search_result.points
         print(f"🔍 Qdrant hits: {len(points)}")
     except Exception as e:
         print("❌ Qdrant error:", e)

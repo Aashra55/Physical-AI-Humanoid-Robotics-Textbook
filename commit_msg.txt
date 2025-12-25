@@ -1,0 +1,18 @@
+feat: Enhance indexing logging and adjust chunking for debugging
+
+Modifies `chatbot_api/core/indexing.py` to add more detailed logging
+during the document indexing process. This includes:
+- Logging the total number of Markdown files found.
+- For each file, logging its relative path, extracted text length, and
+  the number of chunks generated.
+- Introducing a `total_chunks_indexed` counter, reported at the end
+  of the indexing process.
+- Adding error handling for individual file processing to prevent
+  indexing from stopping due to a single problematic file.
+
+Additionally, the `chunk_text` function's `chunk_size` is temporarily
+reduced to 200 and `overlap_size` to 50. This is a diagnostic change
+to observe the impact on the number of generated chunks and help
+determine if the chunking strategy is a contributing factor to the
+lower-than-expected point count in Qdrant. This change will be reverted
+once debugging is complete.
