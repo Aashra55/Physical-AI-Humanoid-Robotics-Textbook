@@ -3,12 +3,12 @@
 # ===============================
 import logging
 
-logging.basicConfig(
+    logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.FileHandler("space.log"),
-        logging.StreamHandler(encoding='utf-8')
+        logging.StreamHandler()
     ]
 )
 
@@ -67,38 +67,37 @@ db_conn = None
 async def startup_event():
     global embedding_model, qdrant_cli, db_conn
 
-    logging.info("🔄 Starting RAG backend...")
+    logging.info("Starting RAG backend...")
 
     try:
         embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-        logging.info("✅ Embedding model loaded")
+        logging.info("Embedding model loaded")
     except Exception as e:
         embedding_model = None
-        logging.error(f"❌ Embedding load failed: {e}", exc_info=True)
+        logging.error(f"Embedding load failed: {e}", exc_info=True)
 
     os.environ["GEMINI_API_KEY"] = settings.GEMINI_API_KEY or ""
-    logging.info("✅ Gemini API key set")
+    logging.info("Gemini API key set")
 
     try:
         qdrant_cli = get_qdrant_client()
-        logging.info("✅ Qdrant connected")
+        logging.info("Qdrant connected")
     except Exception as e:
         qdrant_cli = None
-        logging.error(f"❌ Qdrant connection failed: {e}", exc_info=True)
+        logging.error(f"Qdrant connection failed: {e}", exc_info=True)
 
     try:
         db_conn = get_db_connection()
-        logging.info("✅ PostgreSQL connected")
+        logging.info("PostgreSQL connected")
     except Exception as e:
         db_conn = None
-        logging.error(f"❌ DB connection failed: {e}", exc_info=True)
+        logging.error(f"DB connection failed: {e}", exc_info=True)
 
 @app.on_event("shutdown")
 def shutdown_event():
     if db_conn:
         db_conn.close()
-        logging.info("🛑 DB connection closed")
-
+        logging.info("DB connection closed")
 # -------------------------------
 # Models
 # -------------------------------
