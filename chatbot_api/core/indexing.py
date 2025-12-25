@@ -83,10 +83,11 @@ def setup_databases():
         logging.error(f"Error setting up databases: {e}", exc_info=True)
 
 
-def chunk_text(text: str, chunk_size: int = 500, overlap_size: int = 100):
+def chunk_text(text: str, chunk_size: int = 200, overlap_size: int = 50):
     """
     Splits text into chunks of a specified size with overlap.
     A more sophisticated chunking strategy may be needed for production.
+    TEMPORARILY REDUCED CHUNK_SIZE AND OVERLAP_SIZE FOR DEBUGGING.
     """
     if not text:
         return []
@@ -106,6 +107,7 @@ def chunk_text(text: str, chunk_size: int = 500, overlap_size: int = 100):
 
 def index_documents():
     logging.info("Indexing documents...")
+    total_chunks_indexed = 0
     try:
         embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
         conn = get_db_connection()
@@ -116,49 +118,52 @@ def index_documents():
 
         docs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "website", "docs"))
         markdown_files = glob.glob(os.path.join(docs_path, "**", "*.md"), recursive=True)
+        logging.info(f"Found {len(markdown_files)} Markdown files in {docs_path}")
 
         for md_file in markdown_files:
-            with open(md_file, "r", encoding="utf-8") as f:
-                content = f.read()
+            try:
+                with open(md_file, "r", encoding="utf-8") as f:
+                    content = f.read()
 
-            # Convert markdown to plain text (or handle markdown directly)
-            html = markdown.markdown(content)
-            soup = BeautifulSoup(html, "html.parser")
-            text = soup.get_text()
+                html = markdown.markdown(content)
+                soup = BeautifulSoup(html, "html.parser")
+                text = soup.get_text()
 
-            # Simple chunking
-            chunks = chunk_text(text) # Implement a proper chunking strategy
+                chunks = chunk_text(text)
+                logging.info(f"Processing file: {os.path.relpath(md_file, docs_path)} - Text length: {len(text)}, Generated {len(chunks)} chunks.")
 
-            source = os.path.relpath(md_file, docs_path)
+                source = os.path.relpath(md_file, docs_path)
 
-            for i, chunk in enumerate(chunks):
-                doc_id = uuid.uuid4()
-                embedding = embedding_model.encode(chunk).tolist()
+                for i, chunk in enumerate(chunks):
+                    doc_id = uuid.uuid4()
+                    embedding = embedding_model.encode(chunk).tolist()
 
-                # Insert into Postgres
-                cur.execute(
-                    """
-                    INSERT INTO documents (id, content, source, chunk_num)
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    (str(doc_id), chunk, source, i)
-                )
+                    cur.execute(
+                        """
+                        INSERT INTO documents (id, content, source, chunk_num)
+                        VALUES (%s, %s, %s, %s)
+                        """,
+                        (str(doc_id), chunk, source, i)
+                    )
 
-                # Insert into Qdrant
-                qdrant_cli.upsert(
-                    collection_name=collection_name,
-                    wait=True,
-                    points=[
-                        qdrant_client.models.PointStruct(
-                            id=str(doc_id),
-                            vector=embedding,
-                            payload={"source": source, "chunk_num": i},
-                        )
-                    ],
-                )
+                    qdrant_cli.upsert(
+                        collection_name=collection_name,
+                        wait=True,
+                        points=[
+                            qdrant_client.models.PointStruct(
+                                id=str(doc_id),
+                                vector=embedding,
+                                payload={"source": source, "chunk_num": i},
+                            )
+                        ],
+                    )
+                    total_chunks_indexed += 1
+            except Exception as file_e:
+                logging.error(f"Error processing file {os.path.relpath(md_file, docs_path)}: {file_e}", exc_info=True)
+
         conn.commit()
         cur.close()
         conn.close()
-        logging.info("Documents indexed successfully.")
+        logging.info(f"Documents indexed successfully. Total chunks indexed: {total_chunks_indexed}")
     except Exception as e:
         logging.error(f"Error indexing documents: {e}", exc_info=True)
