@@ -3,7 +3,7 @@
 # ===============================
 import logging
 
-    logging.basicConfig(
+logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
@@ -29,22 +29,19 @@ from core.db import (
     get_document_content,
 )
 
-# -------------------------------
-# Load env
-# -------------------------------
+# -------------------------------# Load env
+# -------------------------------#
 load_dotenv()
 
-# -------------------------------
-# App
-# -------------------------------
+# -------------------------------# App
+# -------------------------------#
 app = FastAPI(
     title="RAG Chatbot API",
     version="1.0.0",
 )
 
-# -------------------------------
-# CORS
-# -------------------------------
+# -------------------------------# CORS
+# -------------------------------#
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -53,16 +50,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# -------------------------------
-# Globals
-# -------------------------------
+# -------------------------------# Globals
+# -------------------------------#
 embedding_model = None
 qdrant_cli = None
 db_conn = None
 
-# -------------------------------
-# Startup
-# -------------------------------
+# -------------------------------# Startup
+# -------------------------------#
 @app.on_event("startup")
 async def startup_event():
     global embedding_model, qdrant_cli, db_conn
@@ -98,9 +93,8 @@ def shutdown_event():
     if db_conn:
         db_conn.close()
         logging.info("DB connection closed")
-# -------------------------------
-# Models
-# -------------------------------
+# -------------------------------# Models
+# -------------------------------#
 class ChatRequest(BaseModel):
     query: str
     selected_text: str | None = None
@@ -110,9 +104,8 @@ class ChatResponse(BaseModel):
     response: str
     sources: list[str]
 
-# -------------------------------
-# Chat API
-# -------------------------------
+# -------------------------------# Chat API
+# -------------------------------#
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
 
@@ -223,17 +216,15 @@ Answer clearly and concisely.
         sources=unique_sources,
     )
 
-# -------------------------------
-# Logs
-# -------------------------------
+# -------------------------------# Logs
+# -------------------------------#
 @app.get("/logs")
 def get_logs():
     with open("space.log", "r") as f:
         return f.read()
 
-# -------------------------------
-# Setup
-# -------------------------------
+# -------------------------------# Setup
+# -------------------------------#
 from core.indexing import setup_databases, index_documents
 
 @app.post("/setup")
@@ -242,9 +233,8 @@ def setup():
     index_documents() # Call the new indexing function
     return {"status": "ok"}
 
-# -------------------------------
-# Health
-# -------------------------------
+# -------------------------------# Health
+# -------------------------------#
 @app.get("/")
 def root():
     return {"status": "ok"}
