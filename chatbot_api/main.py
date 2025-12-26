@@ -14,10 +14,14 @@ DB_URL = os.getenv(
 )
 
 # ---------- QDRANT ----------
-QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
+QDRANT_URL = os.getenv("QDRANT_URL")
 COLLECTION_NAME = "documents"
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 
-client = QdrantClient(url=QDRANT_URL)
+client = QdrantClient(
+    url=QDRANT_URL,
+    api_key=QDRANT_API_KEY
+)
 
 
 def ensure_collection():
