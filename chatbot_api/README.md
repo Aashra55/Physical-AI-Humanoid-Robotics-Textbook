@@ -4,7 +4,9 @@ emoji: 🤖
 colorFrom: blue
 colorTo: green
 sdk: docker
-app_port: 7860
+sdk_version: "3.10"
+app_file: main.py
+pinned: false
 ---
 
 # RAG Chatbot API
