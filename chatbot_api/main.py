@@ -15,7 +15,7 @@ DB_URL = os.getenv(
 
 # ---------- QDRANT ----------
 QDRANT_URL = os.getenv("QDRANT_URL")
-COLLECTION_NAME = "documents"
+COLLECTION_NAME = "rag-chatbot-collection"
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 
 client = QdrantClient(
