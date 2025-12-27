@@ -9,13 +9,12 @@ app = FastAPI()
 
 # ---------- DATABASE ----------
 DB_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://neondb_owner:npg_NlWTCJMZxO35@ep-twilight-hill-agk4goai-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require"
+    "NEON_DB_URL"
 )
 
 # ---------- QDRANT ----------
 QDRANT_URL = os.getenv("QDRANT_URL")
-COLLECTION_NAME = "rag-chatbot-collection"
+COLLECTION_NAME = os.getenv("COLLECTION_NAME")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 
 client = QdrantClient(
@@ -24,12 +23,15 @@ client = QdrantClient(
 )
 
 
+# ---------- ENSURE COLLECTION ----------
 def ensure_collection():
-    if not client.collection_exists(collection_name=COLLECTION_NAME):
-        client.create_collection(
-            collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(size=64, distance=Distance.COSINE)
-        )
+    if client.collection_exists(collection_name=COLLECTION_NAME):
+        # Optional: check vector size and distance if needed
+        return
+    client.create_collection(
+        collection_name=COLLECTION_NAME,
+        vectors_config=VectorParams(size=64, distance=Distance.COSINE)
+    )
 
 ensure_collection()
 
@@ -58,12 +60,13 @@ def get_conn():
     return psycopg2.connect(DB_URL)
 
 
-# ---------- UPSERT ----------
+# ---------- UPSERT DOCUMENT ----------
 @app.post("/upsert")
 async def upsert_document(doc: Document):
     try:
         vec = doc.vector or simple_embed(doc.text)
 
+        # Upsert to Qdrant
         client.upsert(
             collection_name=COLLECTION_NAME,
             points=[
@@ -75,6 +78,7 @@ async def upsert_document(doc: Document):
             ],
         )
 
+        # Upsert to PostgreSQL
         try:
             conn = get_conn()
             cur = conn.cursor()
@@ -88,8 +92,8 @@ async def upsert_document(doc: Document):
             conn.commit()
             cur.close()
             conn.close()
-        except Exception:
-            pass  # DB failure shouldn't break API
+        except Exception as db_err:
+            print(f"PostgreSQL upsert failed: {db_err}")
 
         return {"status": "ok"}
 
@@ -97,23 +101,30 @@ async def upsert_document(doc: Document):
         raise HTTPException(status_code=500, detail=f"Upsert failed: {e}")
 
 
-# ---------- SEARCH ----------
+# ---------- SEARCH DOCUMENTS ----------
 @app.post("/search")
 async def search_docs(query: Query):
     try:
         vec = simple_embed(query.question)
 
-        result = client.query_points(
+        result = client.search(
             collection_name=COLLECTION_NAME,
-            query=vec,
-            limit=query.top_k,
+            query_vector=vec,
+            limit=query.top_k
         )
 
-        hits = [hit.payload.get("text") for hit in result.points]
+        hits = [hit.payload.get("text") for hit in result]
         return {"results": hits}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Qdrant search failed: {e}")
+
+
+# ---------- CHAT ENDPOINT ----------
+@app.post("/chat")
+async def chat(query: Query):
+    """Frontend-friendly endpoint for chatbot"""
+    return await search_docs(query)
 
 
 # ---------- HEALTH ----------
