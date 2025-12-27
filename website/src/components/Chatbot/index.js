@@ -53,7 +53,7 @@ const Chatbot = () => {
       const response = await fetch('https://aashra-my-rag-chatbot-api.hf.space/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query, selected_text: null }),
+        body: JSON.stringify({ question: query }), // Corrected: send 'question' instead of 'query'
       });
       console.log("4. Fetch call completed. Response received:", response);
 
