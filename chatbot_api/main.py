@@ -25,9 +25,9 @@ client = QdrantClient(
 
 
 def ensure_collection():
-    if COLLECTION_NAME not in [c.name for c in client.get_collections().collections]:
+    if not client.collection_exists(collection_name=COLLECTION_NAME):
         client.create_collection(
-            COLLECTION_NAME,
+            collection_name=COLLECTION_NAME,
             vectors_config=VectorParams(size=64, distance=Distance.COSINE)
         )
 
