@@ -1,46 +1,48 @@
 import clsx from 'clsx';
 import Heading from '@theme/Heading';
 import styles from './styles.module.css';
+import { FaRobot, FaBrain } from 'react-icons/fa';
+import { IoChatbubbles } from 'react-icons/io5';
 
 const FeatureList = [
   {
-    title: 'Easy to Use',
-    Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
+    title: 'ROS 2 & Robotics Foundations',
+    Icon: FaRobot,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        Dive into the core concepts of ROS 2, covering nodes, topics, services,
+        actions, and building robotic simulations with URDF and Gazebo.
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
-    Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
+    title: 'Advanced Simulation & AI Integration',
+    Icon: FaBrain,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        Explore advanced simulation environments like Unity and master NVIDIA Isaac
+        for AI-driven robotics, including Isaac Sim and Isaac ROS.
       </>
     ),
   },
   {
-    title: 'Powered by React',
-    Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
+    title: 'Vision-Language-Action Models',
+    Icon: IoChatbubbles,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        Learn about cutting-edge VLA models, multi-modal perception, conversational
+        robotics, and how to implement LLM-driven task planning for humanoid robots.
       </>
     ),
   },
 ];
 
-function Feature({Svg, title, description}) {
+function Feature({Icon, title, description}) {
   return (
     <div className={clsx('col col--4')}>
       <div className={styles.featureCard}>
         <div className="text--center">
-          <Svg className={styles.featureSvg} role="img" />
+          <Icon className={styles.featureSvg} />
         </div>
         <div className="text--center padding-horiz--md">
           <Heading as="h3">{title}</Heading>
