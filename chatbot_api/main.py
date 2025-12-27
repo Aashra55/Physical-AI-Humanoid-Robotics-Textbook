@@ -3,7 +3,12 @@ from pydantic import BaseModel
 from typing import List
 from sentence_transformers import SentenceTransformer
 import litellm
-from fastapi.middleware.cors import CORSMiddleware # Import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware
+import logging # Import logging module
+
+# Configure basic logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 from core.settings import settings
 from core.db import get_qdrant_client
@@ -43,19 +48,19 @@ def check_qdrant_collection():
     try:
         collection_info = qdrant_client.get_collection(collection_name=settings.QDRANT_COLLECTION_NAME)
         if collection_info.config.params.vectors.size != VECTOR_SIZE:
+            logger.error(f"Qdrant collection '{settings.QDRANT_COLLECTION_NAME}' has wrong vector size. Expected {VECTOR_SIZE}, found {collection_info.config.params.vectors.size}.")
             raise RuntimeError(
                 f"Qdrant collection '{settings.QDRANT_COLLECTION_NAME}' has the wrong vector size. "
                 f"Expected {VECTOR_SIZE}, found {collection_info.config.params.vectors.size}. "
                 "Please run the indexing script (`core/indexing.py`) to create it correctly."
             )
     except Exception as e:
-        # Catching broad exceptions because the client can raise different errors
-        # if the collection doesn't exist.
+        logger.error(f"Qdrant collection check failed: {e}", exc_info=True) # Log startup error
         raise RuntimeError(
             f"Qdrant collection '{settings.QDRANT_COLLECTION_NAME}' not found or connection failed. "
             f"Please run the indexing script (`core/indexing.py`) to create it. Original error: {e}"
         )
-    print("✅ Qdrant collection check passed.")
+    logger.info("✅ Qdrant collection check passed.")
 
 
 # ---------- MODELS ----------
@@ -81,9 +86,11 @@ async def retrieve_context(query: Query) -> List[str]:
 
         # The payload contains the original text content.
         context = [hit.payload.get("content") or hit.payload.get("text", "") for hit in result]
+        logger.info(f"Retrieved {len(context)} context chunks from Qdrant for query: '{query.question}'.")
         return [item for item in context if item] # Filter out any empty strings
 
     except Exception as e:
+        logger.error(f"Context retrieval from Qdrant failed for query '{query.question}': {e}", exc_info=True) # Log retrieval error
         raise HTTPException(status_code=500, detail=f"Context retrieval from Qdrant failed: {e}")
 
 
@@ -95,12 +102,15 @@ async def chat(query: Query):
     1. Retrieves relevant context from the textbook (vector database).
     2. Uses an LLM to generate an answer based on the user's question and the context.
     """
+    logger.info(f"Received chat request for question: '{query.question}'")
     # 1. Retrieve context
     context_chunks = await retrieve_context(query)
     if not context_chunks:
+        logger.warning(f"No relevant context found for query: '{query.question}'")
         return {"response": "I'm sorry, I couldn't find any relevant information in the textbook to answer your question."}
 
     context_str = "\n---\n".join(context_chunks)
+    logger.debug(f"Context used for LLM: \n---\n{context_str}\n---") # Use debug for potentially large context
 
     # 2. Generate response with LLM
     try:
@@ -118,19 +128,22 @@ async def chat(query: Query):
                 "content": f"Here is the context from the textbook:\n\n---\n{context_str}\n---\n\nPlease answer the following question:\n{query.question}",
             },
         ]
-
+        logger.info(f"Calling LLM with model: {settings.LLM_MODEL}")
         response = await litellm.acompletion(
             model=settings.LLM_MODEL, messages=messages
         )
 
         ai_response = response.choices[0].message.content
+        logger.info(f"LLM successfully generated response for query: '{query.question}'")
         return {"response": ai_response, "context": context_chunks}
 
     except Exception as e:
+        logger.error(f"LLM generation failed for query '{query.question}': {e}", exc_info=True) # Log LLM error with traceback
         raise HTTPException(status_code=500, detail=f"LLM generation failed: {e}")
 
 
 # ---------- HEALTH CHECK ----------
 @app.get("/")
 def health():
+    logger.info("Health check endpoint accessed.")
     return {"status": "running"}
