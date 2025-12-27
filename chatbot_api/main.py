@@ -56,7 +56,7 @@ async def retrieve_context(query: Query) -> List[str]:
     try:
         vec = embedding_model.encode(query.question).tolist()
 
-        result = qdrant_client.search(
+        result = qdrant_client.query(
             collection_name=settings.QDRANT_COLLECTION_NAME,
             query_vector=vec,
             limit=query.top_k,
