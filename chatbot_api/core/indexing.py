@@ -45,7 +45,7 @@ def setup_databases():
 
         try:
             collection_info = qdrant_cli.get_collection(collection_name=collection_name)
-            current_vector_size = collection_info.vectors_config.params.size
+            current_vector_size = collection_info.config.params.vectors.size
             
             if current_vector_size != correct_vector_size:
                 logging.warning(f"Qdrant collection '{collection_name}' exists with wrong vector size ({current_vector_size}). Recreating.")

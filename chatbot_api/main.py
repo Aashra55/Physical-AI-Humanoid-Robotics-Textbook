@@ -26,10 +26,10 @@ def check_qdrant_collection():
     """
     try:
         collection_info = qdrant_client.get_collection(collection_name=settings.QDRANT_COLLECTION_NAME)
-        if collection_info.vectors_config.params.size != VECTOR_SIZE:
+        if collection_info.config.params.vectors.size != VECTOR_SIZE:
             raise RuntimeError(
                 f"Qdrant collection '{settings.QDRANT_COLLECTION_NAME}' has the wrong vector size. "
-                f"Expected {VECTOR_SIZE}, found {collection_info.vectors_config.params.size}. "
+                f"Expected {VECTOR_SIZE}, found {collection_info.config.params.vectors.size}. "
                 "Please run the indexing script (`core/indexing.py`) to create it correctly."
             )
     except Exception as e:
