@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import List
 from sentence_transformers import SentenceTransformer
 import litellm
+from fastapi.middleware.cors import CORSMiddleware # Import CORSMiddleware
 
 from core.settings import settings
 from core.db import get_qdrant_client
@@ -11,6 +12,21 @@ from core.db import get_qdrant_client
 # (e.g., GEMINI_API_KEY), which are loaded by the settings module.
 
 app = FastAPI()
+
+# Configure CORS middleware
+origins = [
+    "http://localhost",
+    "http://localhost:8080", # Common local development port
+    "https://aashra55.github.io/Physical-AI-Humanoid-Robotics-Textbook/", # Your GitHub Pages frontend URL
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ---------- CLIENTS AND MODELS ----------
 qdrant_client = get_qdrant_client()
