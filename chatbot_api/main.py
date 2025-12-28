@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
-from sentence_transformers import SentenceTransformer
 import litellm
 from fastapi.middleware.cors import CORSMiddleware
 import logging # Import logging module
@@ -35,8 +34,8 @@ app.add_middleware(
 
 # ---------- CLIENTS AND MODELS ----------
 qdrant_client = get_qdrant_client()
-embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-VECTOR_SIZE = 384
+# embedding_model = SentenceTransformer("all-MiniLM-L6-v2") # Removed, as fastembed in Qdrant will handle embedding
+# VECTOR_SIZE = 384 # Removed, as fastembed in Qdrant will handle embedding
 
 # ---------- STARTUP: CHECK QDRANT COLLECTION ----------
 @app.on_event("startup")
@@ -47,12 +46,17 @@ def check_qdrant_collection():
     """
     try:
         collection_info = qdrant_client.get_collection(collection_name=settings.QDRANT_COLLECTION_NAME)
-        if collection_info.config.params.vectors.size != VECTOR_SIZE:
-            logger.error(f"Qdrant collection '{settings.QDRANT_COLLECTION_NAME}' has wrong vector size. Expected {VECTOR_SIZE}, found {collection_info.config.params.vectors.size}.")
+        # We need the vector size for the check, but fastembed handles embedding internally.
+        # So we expect Qdrant to have created a collection with the appropriate fastembed model size.
+        # Default fastembed model size (from 'all-MiniLM-L6-v2') is 384.
+        expected_vector_size = 384 
+
+        if collection_info.config.params.vectors.size != expected_vector_size:
+            logger.error(f"Qdrant collection '{settings.QDRANT_COLLECTION_NAME}' has wrong vector size. Expected {expected_vector_size}, found {collection_info.config.params.vectors.size}.")
             raise RuntimeError(
                 f"Qdrant collection '{settings.QDRANT_COLLECTION_NAME}' has the wrong vector size. "
-                f"Expected {VECTOR_SIZE}, found {collection_info.config.params.vectors.size}. "
-                "Please run the indexing script (`core/indexing.py`) to create it correctly."
+                f"Expected {expected_vector_size}, found {collection_info.config.params.vectors.size}. "
+                "Please run the indexing script (`core/indexing.py`) to create it correctly using fastembed."
             )
     except Exception as e:
         logger.error(f"Qdrant collection check failed: {e}", exc_info=True) # Log startup error
@@ -75,14 +79,12 @@ async def retrieve_context(query: Query) -> List[str]:
     Retrieves the most relevant text chunks from Qdrant based on the query.
     """
     try:
-        vec = embedding_model.encode(query.question).tolist()
-
+        # With fastembed integration, qdrant_client will embed the query_text internally
         result = qdrant_client.query(
             collection_name=settings.QDRANT_COLLECTION_NAME,
-            query_text=query.question, # Added this argument
-            query_vector=vec,
+            query_text=query.question, # Pass query_text directly
             limit=query.top_k,
-            with_payload=True,
+            # query_vector and with_payload are handled implicitly by QdrantFastembedMixin when query_text is provided
         )
 
         # The payload contains the original text content.
