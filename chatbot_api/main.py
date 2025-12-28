@@ -79,6 +79,7 @@ async def retrieve_context(query: Query) -> List[str]:
 
         result = qdrant_client.query(
             collection_name=settings.QDRANT_COLLECTION_NAME,
+            query_text=query.question, # Added this argument
             query_vector=vec,
             limit=query.top_k,
             with_payload=True,
