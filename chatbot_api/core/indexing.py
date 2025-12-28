@@ -45,25 +45,32 @@ def setup_databases():
 
         try:
             collection_info = qdrant_cli.get_collection(collection_name=collection_name)
-            current_vector_size = collection_info.config.params.vectors.size
             
+            # Accessing named vector config - use .get to safely handle non-existent named vector
+            current_vector_config = collection_info.config.params.vectors.get("fast-bge-small-en")
+            current_vector_size = current_vector_config.size if current_vector_config else 0 # 0 if not found
+
             if current_vector_size != correct_vector_size:
-                logging.warning(f"Qdrant collection '{collection_name}' exists with wrong vector size ({current_vector_size}). Recreating.")
+                logging.warning(f"Qdrant collection '{collection_name}' exists with wrong vector size ({current_vector_size}) or named vector config is missing. Recreating.")
                 qdrant_cli.recreate_collection(
                     collection_name=collection_name,
-                    vectors_config=qdrant_client.models.VectorParams(size=correct_vector_size, distance=qdrant_client.models.Distance.COSINE),
+                    vectors_config={
+                        "fast-bge-small-en": qdrant_client.models.VectorParams(size=correct_vector_size, distance=qdrant_client.models.Distance.COSINE)
+                    },
                 )
-                logging.info(f"Qdrant collection '{collection_name}' recreated with correct vector size ({correct_vector_size}).")
+                logging.info(f"Qdrant collection '{collection_name}' recreated with correct named vector size ({correct_vector_size}).")
             else:
-                logging.info(f"Qdrant collection '{collection_name}' already exists with the correct vector size.")
+                logging.info(f"Qdrant collection '{collection_name}' already exists with the correct named vector size.")
 
-        except Exception: # Catches exceptions if collection does not exist
-            logging.info(f"Qdrant collection '{collection_name}' does not exist. Creating it.")
+        except Exception as e: # Catching broad exceptions if collection does not exist or for other issues
+            logging.info(f"Qdrant collection '{collection_name}' does not exist or named vector 'fast-bge-small-en' config is invalid. Creating it. Original error: {e}")
             qdrant_cli.create_collection(
                 collection_name=collection_name,
-                vectors_config=qdrant_client.models.VectorParams(size=correct_vector_size, distance=qdrant_client.models.Distance.COSINE),
+                vectors_config={
+                    "fast-bge-small-en": qdrant_cli.models.VectorParams(size=correct_vector_size, distance=qdrant_cli.models.Distance.COSINE)
+                },
             )
-            logging.info(f"Qdrant collection '{collection_name}' created with vector size ({correct_vector_size}).")
+            logging.info(f"Qdrant collection '{collection_name}' created with named vector size ({correct_vector_size}).")
     except Exception as e:
         logging.error(f"Error setting up databases: {e}", exc_info=True)
 
@@ -91,7 +98,7 @@ def index_documents():
     logging.info("Indexing documents...")
     total_chunks_indexed = 0
     try:
-        embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+        # embedding_model = SentenceTransformer("all-MiniLM-L6-v2") # Removed, fastembed handles embedding
         conn = get_db_connection()
         qdrant_cli = get_qdrant_client()
         collection_name = settings.QDRANT_COLLECTION_NAME
@@ -119,7 +126,7 @@ def index_documents():
 
                 for i, chunk in enumerate(chunks):
                     doc_id = uuid.uuid4()
-                    embedding = embedding_model.encode(chunk).tolist()
+                    # embedding = embedding_model.encode(chunk).tolist() # Removed, fastembed handles embedding
 
                     cur.execute(
                         """
@@ -135,12 +142,14 @@ def index_documents():
                         points=[
                             qdrant_client.models.PointStruct(
                                 id=str(doc_id),
-                                vector=embedding,
-                                payload={"source": source, "chunk_num": i},
+                                # Qdrant with fastembed will embed the text itself
+                                vector={
+                                    "fast-bge-small-en": chunk # Provide the text, fastembed will embed it
+                                },
+                                payload={"source": source, "chunk_num": i, "content": chunk}, # Added 'content' to payload
                             )
                         ],
                     )
-                    total_chunks_indexed += 1
             except Exception as file_e:
                 logging.error(f"Error processing file {os.path.relpath(md_file, docs_path)}: {file_e}", exc_info=True)
 
