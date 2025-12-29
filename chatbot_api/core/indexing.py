@@ -48,27 +48,15 @@ def setup_databases():
         collection_name = settings.QDRANT_COLLECTION_NAME
         correct_vector_size = 384  # Vector size for all-MiniLM-L6-v2 (used by fast-bge-small-en)
 
+        # Explicitly delete collection to ensure a clean slate before creation/recreation
         try:
-            collection_info = qdrant_cli.get_collection(collection_name=collection_name)
-            
-            # Accessing named vector config - use .get to safely handle non-existent named vector
-            current_vector_config = collection_info.config.params.vectors.get("fast-bge-small-en")
-            current_vector_size = current_vector_config.size if current_vector_config else 0 # 0 if not found
+            qdrant_cli.delete_collection(collection_name=collection_name)
+            logger.info(f"Existing Qdrant collection '{collection_name}' deleted for recreation.")
+        except Exception as e:
+            logger.info(f"Qdrant collection '{collection_name}' did not exist, no deletion needed (Error: {e}).")
 
-            if current_vector_size != correct_vector_size:
-                logger.warning(f"Qdrant collection '{collection_name}' exists with wrong vector size ({current_vector_size}) or named vector config is missing. Recreating.")
-                qdrant_cli.recreate_collection(
-                    collection_name=collection_name,
-                    vectors_config={
-                        "fast-bge-small-en": VectorParams(size=correct_vector_size, distance=Distance.COSINE)
-                    },
-                )
-                logger.info(f"Qdrant collection '{collection_name}' recreated with correct named vector size ({correct_vector_size}).")
-            else:
-                logger.info(f"Qdrant collection '{collection_name}' already exists with the correct named vector size.")
-
-        except Exception as e: # Catching broad exceptions if collection does not exist or for other issues
-            logger.info(f"Qdrant collection '{collection_name}' does not exist or named vector 'fast-bge-small-en' config is invalid. Creating it. Original error: {e}")
+        try:
+            # After deletion, create it with the correct config
             qdrant_cli.create_collection(
                 collection_name=collection_name,
                 vectors_config={
@@ -76,6 +64,11 @@ def setup_databases():
                 },
             )
             logger.info(f"Qdrant collection '{collection_name}' created with named vector size ({correct_vector_size}).")
+
+        except Exception as e: # Catching broad exceptions if collection does not exist or for other issues
+            logger.error(f"Error creating Qdrant collection '{collection_name}': {e}", exc_info=True)
+            raise # Re-raise the exception as creation is critical
+
     except Exception as e:
         logger.error(f"Error setting up databases: {e}", exc_info=True)
 
