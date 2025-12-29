@@ -5,6 +5,7 @@ import markdown
 import uuid
 from bs4 import BeautifulSoup
 import qdrant_client
+from qdrant_client.models import PointStruct, VectorParams, Distance # Import Qdrant models directly
 from sentence_transformers import SentenceTransformer
 
 from .settings import settings
@@ -59,7 +60,7 @@ def setup_databases():
                 qdrant_cli.recreate_collection(
                     collection_name=collection_name,
                     vectors_config={
-                        "fast-bge-small-en": qdrant_client.models.VectorParams(size=correct_vector_size, distance=qdrant_client.models.Distance.COSINE)
+                        "fast-bge-small-en": VectorParams(size=correct_vector_size, distance=Distance.COSINE)
                     },
                 )
                 logger.info(f"Qdrant collection '{collection_name}' recreated with correct named vector size ({correct_vector_size}).")
@@ -71,7 +72,7 @@ def setup_databases():
             qdrant_cli.create_collection(
                 collection_name=collection_name,
                 vectors_config={
-                    "fast-bge-small-en": qdrant_client.models.VectorParams(size=correct_vector_size, distance=qdrant_client.models.Distance.COSINE)
+                    "fast-bge-small-en": VectorParams(size=correct_vector_size, distance=Distance.COSINE)
                 },
             )
             logger.info(f"Qdrant collection '{collection_name}' created with named vector size ({correct_vector_size}).")
@@ -144,7 +145,7 @@ def index_documents():
                         collection_name=collection_name,
                         wait=True,
                         points=[
-                            qdrant_cli.models.PointStruct(
+                            PointStruct(
                                 id=str(doc_id),
                                 # Qdrant expects the computed vector for upsert
                                 vector={
