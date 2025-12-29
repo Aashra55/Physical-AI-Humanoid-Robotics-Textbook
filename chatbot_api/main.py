@@ -51,12 +51,22 @@ def check_qdrant_collection():
         # Default fastembed model size (from 'all-MiniLM-L6-v2') is 384.
         expected_vector_size = 384 
 
-        if collection_info.config.params.vectors.size != expected_vector_size:
-            logger.error(f"Qdrant collection '{settings.QDRANT_COLLECTION_NAME}' has wrong vector size. Expected {expected_vector_size}, found {collection_info.config.params.vectors.size}.")
+        # Access the specific named vector config
+        named_vector_config = collection_info.config.params.vectors.get("fast-bge-small-en")
+
+        if not named_vector_config:
+            logger.error(f"Qdrant collection '{settings.QDRANT_COLLECTION_NAME}' does not have the expected named vector 'fast-bge-small-en'.")
             raise RuntimeError(
-                f"Qdrant collection '{settings.QDRANT_COLLECTION_NAME}' has the wrong vector size. "
-                f"Expected {expected_vector_size}, found {collection_info.config.params.vectors.size}. "
-                "Please run the indexing script (`core/indexing.py`) to create it correctly using fastembed."
+                f"Qdrant collection '{settings.QDRANT_COLLECTION_NAME}' is missing the required named vector 'fast-bge-small-en'. "
+                "Please run the indexing script (`core/indexing.py`) to create it correctly."
+            )
+        
+        if named_vector_config.size != expected_vector_size:
+            logger.error(f"Qdrant collection '{settings.QDRANT_COLLECTION_NAME}' named vector 'fast-bge-small-en' has wrong size. Expected {expected_vector_size}, found {named_vector_config.size}.")
+            raise RuntimeError(
+                f"Qdrant collection '{settings.QDRANT_COLLECTION_NAME}' named vector 'fast-bge-small-en' has the wrong size. "
+                f"Expected {expected_vector_size}, found {named_vector_config.size}. "
+                "Please run the indexing script (`core/indexing.py`) to create it correctly."
             )
     except Exception as e:
         logger.error(f"Qdrant collection check failed: {e}", exc_info=True) # Log startup error
