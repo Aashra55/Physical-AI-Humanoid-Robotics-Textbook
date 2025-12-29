@@ -10,6 +10,10 @@ from sentence_transformers import SentenceTransformer
 from .settings import settings
 from .db import get_db_connection, get_qdrant_client
 
+# --- Configure basic logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 # --- 1. Database and Client Initialization ---
 
 def setup_databases():
@@ -17,7 +21,7 @@ def setup_databases():
     Sets up the Postgres table and Qdrant collection. If the Qdrant collection
     exists with the wrong vector size, it is recreated.
     """
-    logging.info("Setting up databases...")
+    logger.info("Setting up databases...")
     try:
         # --- Setup Postgres ---
         conn = get_db_connection()
@@ -36,12 +40,12 @@ def setup_databases():
         conn.commit()
         cur.close()
         conn.close()
-        logging.info("Postgres 'documents' table ensured.")
+        logger.info("Postgres 'documents' table ensured.")
 
         # --- Setup Qdrant ---
         qdrant_cli = get_qdrant_client()
         collection_name = settings.QDRANT_COLLECTION_NAME
-        correct_vector_size = 384  # Vector size for all-MiniLM-L6-v2
+        correct_vector_size = 384  # Vector size for all-MiniLM-L6-v2 (used by fast-bge-small-en)
 
         try:
             collection_info = qdrant_cli.get_collection(collection_name=collection_name)
@@ -51,28 +55,28 @@ def setup_databases():
             current_vector_size = current_vector_config.size if current_vector_config else 0 # 0 if not found
 
             if current_vector_size != correct_vector_size:
-                logging.warning(f"Qdrant collection '{collection_name}' exists with wrong vector size ({current_vector_size}) or named vector config is missing. Recreating.")
+                logger.warning(f"Qdrant collection '{collection_name}' exists with wrong vector size ({current_vector_size}) or named vector config is missing. Recreating.")
                 qdrant_cli.recreate_collection(
                     collection_name=collection_name,
                     vectors_config={
                         "fast-bge-small-en": qdrant_client.models.VectorParams(size=correct_vector_size, distance=qdrant_client.models.Distance.COSINE)
                     },
                 )
-                logging.info(f"Qdrant collection '{collection_name}' recreated with correct named vector size ({correct_vector_size}).")
+                logger.info(f"Qdrant collection '{collection_name}' recreated with correct named vector size ({correct_vector_size}).")
             else:
-                logging.info(f"Qdrant collection '{collection_name}' already exists with the correct named vector size.")
+                logger.info(f"Qdrant collection '{collection_name}' already exists with the correct named vector size.")
 
         except Exception as e: # Catching broad exceptions if collection does not exist or for other issues
-            logging.info(f"Qdrant collection '{collection_name}' does not exist or named vector 'fast-bge-small-en' config is invalid. Creating it. Original error: {e}")
+            logger.info(f"Qdrant collection '{collection_name}' does not exist or named vector 'fast-bge-small-en' config is invalid. Creating it. Original error: {e}")
             qdrant_cli.create_collection(
                 collection_name=collection_name,
                 vectors_config={
-                    "fast-bge-small-en": qdrant_cli.models.VectorParams(size=correct_vector_size, distance=qdrant_cli.models.Distance.COSINE)
+                    "fast-bge-small-en": qdrant_client.models.VectorParams(size=correct_vector_size, distance=qdrant_client.models.Distance.COSINE)
                 },
             )
-            logging.info(f"Qdrant collection '{collection_name}' created with named vector size ({correct_vector_size}).")
+            logger.info(f"Qdrant collection '{collection_name}' created with named vector size ({correct_vector_size}).")
     except Exception as e:
-        logging.error(f"Error setting up databases: {e}", exc_info=True)
+        logger.error(f"Error setting up databases: {e}", exc_info=True)
 
 
 def chunk_text(text: str, chunk_size: int = 200, overlap_size: int = 50):
@@ -95,10 +99,10 @@ def chunk_text(text: str, chunk_size: int = 200, overlap_size: int = 50):
     return chunks
 
 def index_documents():
-    logging.info("Indexing documents...")
+    logger.info("Indexing documents...")
     total_chunks_indexed = 0
     try:
-        # embedding_model = SentenceTransformer("all-MiniLM-L6-v2") # Removed, fastembed handles embedding
+        embedding_model = SentenceTransformer("all-MiniLM-L6-v2") # Re-introduced
         conn = get_db_connection()
         qdrant_cli = get_qdrant_client()
         collection_name = settings.QDRANT_COLLECTION_NAME
@@ -108,7 +112,7 @@ def index_documents():
         # Use the path from settings, ensuring it's absolute
         docs_path = os.path.abspath(settings.DOCS_PATH)
         markdown_files = glob.glob(os.path.join(docs_path, "**", "*.md"), recursive=True)
-        logging.info(f"Found {len(markdown_files)} Markdown files in {docs_path}")
+        logger.info(f"Found {len(markdown_files)} Markdown files in {docs_path}")
 
         for md_file in markdown_files:
             try:
@@ -120,13 +124,13 @@ def index_documents():
                 text = soup.get_text()
 
                 chunks = chunk_text(text)
-                logging.info(f"Processing file: {os.path.relpath(md_file, docs_path)} - Text length: {len(text)}, Generated {len(chunks)} chunks.")
+                logger.info(f"Processing file: {os.path.relpath(md_file, docs_path)} - Text length: {len(text)}, Generated {len(chunks)} chunks.")
 
                 source = os.path.relpath(md_file, docs_path)
 
                 for i, chunk in enumerate(chunks):
                     doc_id = uuid.uuid4()
-                    # embedding = embedding_model.encode(chunk).tolist() # Removed, fastembed handles embedding
+                    embedding = embedding_model.encode(chunk).tolist() # Re-introduced
 
                     cur.execute(
                         """
@@ -140,22 +144,28 @@ def index_documents():
                         collection_name=collection_name,
                         wait=True,
                         points=[
-                            qdrant_client.models.PointStruct(
+                            qdrant_cli.models.PointStruct(
                                 id=str(doc_id),
-                                # Qdrant with fastembed will embed the text itself
+                                # Qdrant expects the computed vector for upsert
                                 vector={
-                                    "fast-bge-small-en": chunk # Provide the text, fastembed will embed it
+                                    "fast-bge-small-en": embedding # Pass the computed embedding here
                                 },
                                 payload={"source": source, "chunk_num": i, "content": chunk}, # Added 'content' to payload
                             )
                         ],
                     )
+                    total_chunks_indexed += 1
             except Exception as file_e:
-                logging.error(f"Error processing file {os.path.relpath(md_file, docs_path)}: {file_e}", exc_info=True)
+                logger.error(f"Error processing file {os.path.relpath(md_file, docs_path)}: {file_e}", exc_info=True)
 
         conn.commit()
         cur.close()
         conn.close()
-        logging.info(f"Documents indexed successfully. Total chunks indexed: {total_chunks_indexed}")
+        logger.info(f"Documents indexed successfully. Total chunks indexed: {total_chunks_indexed}")
     except Exception as e:
-        logging.error(f"Error indexing documents: {e}", exc_info=True)
+        logger.error(f"Error indexing documents: {e}", exc_info=True)
+
+
+if __name__ == "__main__":
+    setup_databases()
+    index_documents()
