@@ -102,12 +102,12 @@ async def retrieve_context(query: Query) -> List[str]:
         for i, hit in enumerate(result):
             # The payload contains the original text content.
             # Assuming 'hit' is a ScoredPoint object which does have a .payload attribute
-            if hasattr(hit, 'payload') and hit.payload:
-                text_content = hit.payload.get("content") or hit.payload.get("text", "")
+            if hasattr(hit, 'metadata') and hit.metadata:
+                text_content = hit.metadata.get("content", "")
                 if text_content:
                     context.append(text_content)
             else:
-                logger.warning(f"Hit {i} object does not have an expected 'payload' attribute or it is empty. Hit: {hit}")
+                logger.warning(f"Hit {i} object does not have an expected 'metadata' attribute or it is empty. Hit: {hit}")
 
 
         logger.info(f"Retrieved {len(context)} context chunks from Qdrant for query: '{query.question}'.")
