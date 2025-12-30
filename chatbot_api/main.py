@@ -99,7 +99,6 @@ async def retrieve_context(query: Query) -> List[str]:
             query_vector=vec, # Use query_vector
             query_text=query.question, # Added to satisfy QdrantFastembedMixin.query()
             limit=query.top_k,
-            with_payload=True, # Explicitly request payload
         )
 
         context = []
