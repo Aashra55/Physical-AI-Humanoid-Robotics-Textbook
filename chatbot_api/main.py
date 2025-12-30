@@ -23,6 +23,8 @@ origins = [
     "http://localhost",
     "http://localhost:8080", # Common local development port
     "https://aashra55.github.io/Physical-AI-Humanoid-Robotics-Textbook/", # Your GitHub Pages frontend URL
+    "https://aashra-rag-chatbot-api.hf.space", # Your Hugging Face Space URL
+    "*", # Wildcard for development
 ]
 
 app.add_middleware(
