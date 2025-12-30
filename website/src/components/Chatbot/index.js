@@ -49,8 +49,8 @@ const Chatbot = () => {
     setIsLoading(true);
 
     try {
-      console.log("3. Attempting to fetch from backend at https://aashra-my-rag-chatbot-api.hf.space/chat...");
-      const response = await fetch('https://aashra-my-rag-chatbot-api.hf.space/chat', {
+      console.log("3. Attempting to fetch from backend at https://aashra-rag-chatbot-api.hf.space/chat...");
+      const response = await fetch('https://aashra-rag-chatbot-api.hf.space/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: query }), // Corrected: send 'question' instead of 'query'
