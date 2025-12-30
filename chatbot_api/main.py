@@ -94,6 +94,7 @@ async def retrieve_context(query: Query) -> List[str]:
             collection_name=settings.QDRANT_COLLECTION_NAME,
             query_text=query.question, # Pass query_text directly
             limit=query.top_k,
+            with_payload=True, # Explicitly request payload
             # query_vector and with_payload are handled implicitly by QdrantFastembedMixin when query_text is provided
         )
         logger.debug(f"Raw Qdrant query result type: {type(result)}")
@@ -113,7 +114,8 @@ async def retrieve_context(query: Query) -> List[str]:
                 if text_content:
                     context.append(text_content)
             else:
-                logger.warning(f"Hit {i} object does not have an expected 'payload' attribute or it is empty.")
+                logger.warning(f"Hit {i} object does not have an expected 'payload' attribute or it is empty. Hit: {hit}")
+
 
 
         logger.info(f"Retrieved {len(context)} context chunks from Qdrant for query: '{query.question}'.")
