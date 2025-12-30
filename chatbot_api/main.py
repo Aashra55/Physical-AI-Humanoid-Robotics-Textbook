@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
+from sentence_transformers import SentenceTransformer # Re-introduced
 import litellm
 from fastapi.middleware.cors import CORSMiddleware
 import logging # Import logging module
@@ -34,8 +35,8 @@ app.add_middleware(
 
 # ---------- CLIENTS AND MODELS ----------
 qdrant_client = get_qdrant_client()
-# embedding_model = SentenceTransformer("all-MiniLM-L6-v2") # Removed, as fastembed in Qdrant will handle embedding
-# VECTOR_SIZE = 384 # Removed, as fastembed in Qdrant will handle embedding
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2") # Re-introduced
+VECTOR_SIZE = 384 # Re-introduced
 
 # ---------- STARTUP: CHECK QDRANT COLLECTION ----------
 @app.on_event("startup")
@@ -89,25 +90,18 @@ async def retrieve_context(query: Query) -> List[str]:
     Retrieves the most relevant text chunks from Qdrant based on the query.
     """
     try:
-        # With fastembed integration, qdrant_client will embed the query_text internally
+        vec = embedding_model.encode(query.question).tolist() # Re-introduced
+
         result = qdrant_client.query(
             collection_name=settings.QDRANT_COLLECTION_NAME,
-            query_text=query.question, # Pass query_text directly
+            query_vector=vec, # Use query_vector
             limit=query.top_k,
             with_payload=True, # Explicitly request payload
-            # query_vector and with_payload are handled implicitly by QdrantFastembedMixin when query_text is provided
         )
-        logger.debug(f"Raw Qdrant query result type: {type(result)}")
-        logger.debug(f"Raw Qdrant query result: {result}")
 
         context = []
         for i, hit in enumerate(result):
-            logger.debug(f"Hit {i} type: {type(hit)}")
-            logger.debug(f"Hit {i} content: {hit}")
-            logger.debug(f"Hit {i} dir(): {dir(hit)}") # Inspect available attributes
-            
             # The payload contains the original text content.
-            # Correctly access payload from the hit object.
             # Assuming 'hit' is a ScoredPoint object which does have a .payload attribute
             if hasattr(hit, 'payload') and hit.payload:
                 text_content = hit.payload.get("content") or hit.payload.get("text", "")
@@ -115,7 +109,6 @@ async def retrieve_context(query: Query) -> List[str]:
                     context.append(text_content)
             else:
                 logger.warning(f"Hit {i} object does not have an expected 'payload' attribute or it is empty. Hit: {hit}")
-
 
 
         logger.info(f"Retrieved {len(context)} context chunks from Qdrant for query: '{query.question}'.")
