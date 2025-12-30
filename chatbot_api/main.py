@@ -92,12 +92,9 @@ async def retrieve_context(query: Query) -> List[str]:
     Retrieves the most relevant text chunks from Qdrant based on the query.
     """
     try:
-        vec = embedding_model.encode(query.question).tolist() # Re-introduced
-
         result = qdrant_client.query(
             collection_name=settings.QDRANT_COLLECTION_NAME,
-            query_vector=vec, # Use query_vector
-            query_text=query.question, # Added to satisfy QdrantFastembedMixin.query()
+            query_text=query.question, # The client will handle embedding
             limit=query.top_k,
         )
 
