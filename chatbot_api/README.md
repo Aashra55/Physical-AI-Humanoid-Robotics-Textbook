@@ -1,12 +1,11 @@
 ---
-title: My RAG Chatbot API
+title: RAG Chatbot API
 emoji: 🤖
 colorFrom: blue
 colorTo: green
 sdk: docker
 pinned: false
 ---
-
 
 # RAG Chatbot API
 
