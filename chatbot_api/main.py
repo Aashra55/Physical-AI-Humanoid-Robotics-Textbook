@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import litellm
 import google.generativeai as genai # New import
 from core.settings import settings # Import settings here
+from core.db import get_qdrant_client
 
 # Configure Google Generative AI client
 genai.configure(api_key=settings.GEMINI_API_KEY)
