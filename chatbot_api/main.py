@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
 from sentence_transformers import SentenceTransformer # Re-introduced
+from fastapi.middleware.cors import CORSMiddleware
 import litellm
 import google.generativeai as genai # New import
 from core.settings import settings # Import settings here
