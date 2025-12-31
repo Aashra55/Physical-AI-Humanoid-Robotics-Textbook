@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # Application settings
     QDRANT_COLLECTION_NAME: str = "rag_chatbot_collection"
     DOCS_PATH: str = "../website/docs"
-    LLM_MODEL: str = "gemini/gemini-pro"
+    LLM_MODEL: str = "gemini-pro"
 
     @field_validator('*', mode='before')
     @classmethod
