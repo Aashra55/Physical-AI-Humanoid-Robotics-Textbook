@@ -13,8 +13,7 @@ import logging # Import logging module
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Configure Google Generative AI client
-genai.configure(api_key=settings.GEMINI_API_KEY)
+
 
 # litellm will automatically pick up the API key from environment variables
 # (e.g., GEMINI_API_KEY), which are loaded by the settings module.
@@ -154,7 +153,8 @@ async def chat(query: Query):
 
         model = genai.GenerativeModel(
             model_name=settings.LLM_MODEL,
-            system_instruction=system_instruction_text
+            system_instruction=system_instruction_text,
+            api_key=settings.GEMINI_API_KEY
         )
 
         response_object = await model.generate_content_async(
