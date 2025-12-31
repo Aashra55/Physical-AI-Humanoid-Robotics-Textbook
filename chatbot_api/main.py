@@ -3,6 +3,11 @@ from pydantic import BaseModel
 from typing import List
 from sentence_transformers import SentenceTransformer # Re-introduced
 import litellm
+import google.generativeai as genai # New import
+
+# Configure Google Generative AI client
+genai.configure(api_key=settings.GEMINI_API_KEY)
+
 
 from fastapi.middleware.cors import CORSMiddleware
 import logging # Import logging module
@@ -139,26 +144,27 @@ async def chat(query: Query):
 
     # 2. Generate response with LLM
     try:
-        system_prompt = (
+        system_instruction_text = (
             "You are an expert AI assistant for the 'Physical AI Humanoid Robotics Textbook'. "
             "Your task is to answer the user's question based *only* on the provided context from the book. "
             "Do not use any outside knowledge. If the context does not contain the answer, "
             "state that the information is not available in the provided materials."
         )
 
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {
-                "role": "user",
-                "content": f"Here is the context from the textbook:\n\n---\n{context_str}\n---\n\nPlease answer the following question:\n{query.question}",
-            },
-        ]
-        logger.info(f"Calling LLM with model: {settings.LLM_MODEL}")
-        response = await litellm.acompletion(
-            model=settings.LLM_MODEL, messages=messages, provider="google"
+        user_content_for_llm = (
+            f"Here is the context from the textbook:\n\n---\n{context_str}\n---\n\nPlease answer the following question:\n{query.question}"
         )
 
-        ai_response = response.choices[0].message.content
+        model = genai.GenerativeModel(
+            model_name=settings.LLM_MODEL,
+            system_instruction=system_instruction_text
+        )
+
+        response_object = await model.generate_content_async(
+            user_content_for_llm
+        )
+
+        ai_response = response_object.text
         logger.info(f"LLM successfully generated response for query: '{query.question}'")
         return {"response": ai_response, "context": context_chunks}
 
