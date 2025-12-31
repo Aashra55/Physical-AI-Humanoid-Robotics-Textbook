@@ -3,6 +3,9 @@ from pydantic import BaseModel
 from typing import List
 from sentence_transformers import SentenceTransformer # Re-introduced
 import litellm
+litellm.set_verbose(True) # Add for debugging
+litellm.custom_llm_provider("gemini-pro", "google") # Explicitly set provider
+
 from fastapi.middleware.cors import CORSMiddleware
 import logging # Import logging module
 
