@@ -4,20 +4,10 @@ from typing import List
 from sentence_transformers import SentenceTransformer # Re-introduced
 import litellm
 import google.generativeai as genai # New import
+from core.settings import settings # Import settings here
 
 # Configure Google Generative AI client
 genai.configure(api_key=settings.GEMINI_API_KEY)
-
-
-from fastapi.middleware.cors import CORSMiddleware
-import logging # Import logging module
-
-# Configure basic logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-from core.settings import settings
-from core.db import get_qdrant_client
 
 # litellm will automatically pick up the API key from environment variables
 # (e.g., GEMINI_API_KEY), which are loaded by the settings module.
