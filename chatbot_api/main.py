@@ -4,7 +4,7 @@ from typing import List
 from sentence_transformers import SentenceTransformer # Re-introduced
 from fastapi.middleware.cors import CORSMiddleware
 import litellm
-import google.generativeai as genai # New import
+import google.genai as genai # Use the new, recommended client library
 from core.settings import settings # Import settings here
 from core.db import get_qdrant_client # THIS WAS THE LAST FIX
 import logging # Import logging module
