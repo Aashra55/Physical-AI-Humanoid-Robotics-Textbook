@@ -154,7 +154,7 @@ async def chat(query: Query):
         ]
         logger.info(f"Calling LLM with model: {settings.LLM_MODEL}")
         response = await litellm.acompletion(
-            model=settings.LLM_MODEL, messages=messages, api_key=settings.GEMINI_API_KEY
+            model=settings.LLM_MODEL, messages=messages
         )
 
         ai_response = response.choices[0].message.content
