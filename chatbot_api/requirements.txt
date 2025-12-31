@@ -11,3 +11,4 @@ beautifulsoup4
 markdown
 pydantic-settings
 fastembed
+google-auth
