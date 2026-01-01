@@ -4,7 +4,7 @@ from typing import List
 from sentence_transformers import SentenceTransformer # Re-introduced
 from fastapi.middleware.cors import CORSMiddleware
 import litellm
-import google.genai as genai # Use the new, recommended client library
+from google.genai import GenerativeModel
 from core.settings import settings # Import settings here
 from core.db import get_qdrant_client # THIS WAS THE LAST FIX
 import logging # Import logging module
@@ -151,7 +151,7 @@ async def chat(query: Query):
             f"Here is the context from the textbook:\n\n---\n{context_str}\n---\n\nPlease answer the following question:\n{query.question}"
         )
 
-        model = genai.GenerativeModel(
+        model = GenerativeModel(
             model_name=settings.LLM_MODEL,
             system_instruction=system_instruction_text,
             api_key=settings.GEMINI_API_KEY
