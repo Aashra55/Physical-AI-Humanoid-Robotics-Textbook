@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 
     # Environment-specific settings
-    GEMINI_API_KEY: str
+    GOOGLE_API_KEY: str
     QDRANT_URL: str
     QDRANT_API_KEY: str
     NEON_DB_URL: str

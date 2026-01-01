@@ -13,8 +13,7 @@ import logging # Import logging module
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Configure Google Generative AI client
-genai.set_api_key(settings.GEMINI_API_KEY)
+
 
 
 
