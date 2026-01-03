@@ -3,7 +3,7 @@ uvicorn
 gunicorn
 python-dotenv
 openai
-litellm>=1.25.0
+
 sentence-transformers
 qdrant-client
 psycopg[binary]
