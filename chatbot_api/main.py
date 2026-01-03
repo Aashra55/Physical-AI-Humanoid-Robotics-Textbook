@@ -4,7 +4,20 @@ from typing import List
 from sentence_transformers import SentenceTransformer # Re-introduced
 from fastapi.middleware.cors import CORSMiddleware
 
-import google.generativeai as genai
+import sys
+import subprocess
+
+try:
+    import google.generativeai as genai
+except ImportError:
+    print("google.generativeai not found. Attempting to install...")
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "google-generativeai"])
+        import google.generativeai as genai
+        print("google.generativeai installed and imported successfully.")
+    except Exception as e:
+        print(f"Failed to install google.generativeai at runtime: {e}")
+        sys.exit(1) # Exit if critical dependency cannot be installed
 from core.settings import settings # Import settings here
 from core.db import get_qdrant_client # THIS WAS THE LAST FIX
 import logging # Import logging module
