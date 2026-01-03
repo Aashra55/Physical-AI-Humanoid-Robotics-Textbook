@@ -46,7 +46,26 @@ VECTOR_SIZE = 384 # Re-introduced
 
 # ---------- STARTUP: CHECK QDRANT COLLECTION ----------
 @app.on_event("startup")
-def check_qdrant_collection():
+def list_available_gemini_models():
+    logger.info("Listing available Gemini models from Google API:")
+    found_models_for_content = []
+    found_models_other = []
+    for m in genai.list_models():
+        if "generateContent" in m.supported_generation_methods:
+            found_models_for_content.append(m.name)
+        else:
+            found_models_other.append(m.name)
+    
+    if found_models_for_content:
+        logger.info(f"Available models supporting 'generateContent': {', '.join(found_models_for_content)}")
+    else:
+        logger.warning("No models found supporting 'generateContent'. Check API key and regional availability.")
+    
+    if found_models_other:
+        logger.info(f"Other available models (not supporting 'generateContent'): {', '.join(found_models_other)}")
+    
+    # Existing Qdrant check
+    check_qdrant_collection()
     """
     On startup, verify that the Qdrant collection exists and has the correct
     vector size. If not, raise an error to prevent the app from starting.
