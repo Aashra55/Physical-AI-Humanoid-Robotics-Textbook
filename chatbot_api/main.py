@@ -44,7 +44,7 @@ qdrant_client = get_qdrant_client()
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2") # Re-introduced
 VECTOR_SIZE = 384 # Re-introduced
 
-# ---------- STARTUP: CHECK QDRANT COLLECTION ----------
+# ---------- STARTUP: QDRANT COLLECTION CHECK ----------
 @app.on_event("startup")
 def list_available_gemini_models():
     logger.info("Listing available Gemini models from Google API:")
@@ -64,8 +64,10 @@ def list_available_gemini_models():
     if found_models_other:
         logger.info(f"Other available models (not supporting 'generateContent'): {', '.join(found_models_other)}")
     
-    # Existing Qdrant check
-    check_qdrant_collection()
+    # Now call the actual Qdrant check function
+    check_qdrant_collection_internal() # Renamed to avoid confusion with the decorator
+
+def check_qdrant_collection_internal():
     """
     On startup, verify that the Qdrant collection exists and has the correct
     vector size. If not, raise an error to prevent the app from starting.
