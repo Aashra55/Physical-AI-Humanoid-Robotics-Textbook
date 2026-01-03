@@ -13,4 +13,4 @@ pydantic-settings
 fastembed
 google-auth
 google-genai
-google-generativeai
+
