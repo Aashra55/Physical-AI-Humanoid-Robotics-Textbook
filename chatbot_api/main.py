@@ -156,7 +156,7 @@ async def chat(query: Query):
         model = genai.GenerativeModel(
             model_name=settings.LLM_MODEL,
             system_instruction=system_instruction_text,
-            api_key=settings.GEMINI_API_KEY
+            api_key=settings.GOOGLE_API_KEY
         )
 
         response_object = await model.generate_content_async(
