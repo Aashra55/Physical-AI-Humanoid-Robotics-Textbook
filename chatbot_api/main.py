@@ -19,18 +19,10 @@ client_genai = genai.Client(api_key=settings.GOOGLE_API_KEY)
 
 app = FastAPI()
 
-# Configure CORS middleware
-origins = [
-    "http://localhost",
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "https://aashra55.github.io",
-    "*",
-]
-
+# Super permissive CORS for local testing
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
