@@ -37,7 +37,12 @@ const config = {
   // may want to replace "en" with "zh-Hans".
   i18n: {
     defaultLocale: 'en',
-    locales: ['en'],
+    locales: ['en', 'ur'],
+    localeConfigs: {
+      ur: {
+        direction: 'rtl',
+      },
+    },
   },
 
   presets: [
@@ -86,7 +91,7 @@ const config = {
         title: 'Physical AI & Humanoid Robotics',
         logo: {
           alt: 'Physical AI & Humanoid Robotics Logo',
-          src: 'img/logo.svg',
+          src: 'img/logo_new.svg',
         },
         items: [
           {
@@ -94,6 +99,10 @@ const config = {
             sidebarId: 'tutorialSidebar', // Will be customized in a later task
             position: 'left',
             label: 'Book',
+          },
+          {
+            type: 'localeDropdown',
+            position: 'right',
           },
           {
             href: 'https://github.com/Aashra55/AI-Spec-Driven-Hackathon/tree/main/Physcial-AI-Humanoid-Robotics-Textbook',

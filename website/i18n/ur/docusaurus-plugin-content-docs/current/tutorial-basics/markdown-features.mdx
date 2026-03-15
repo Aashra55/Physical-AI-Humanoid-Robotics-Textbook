@@ -1,0 +1,152 @@
+---
+sidebar_position: 4
+---
+
+# مارک ڈاؤن خصوصیات
+
+ڈوکوسارس **[مارک ڈاؤن](https://daringfireball.net/projects/markdown/syntax)** اور کچھ **اضافی خصوصیات** کو سپورٹ کرتا ہے۔
+
+## فرنٹ میٹر
+
+مارک ڈاؤن دستاویزات کے اوپر میٹا ڈیٹا ہوتا ہے جسے [فرنٹ میٹر](https://jekyllrb.com/docs/front-matter/) کہتے ہیں:
+
+```text title="my-doc.md"
+// highlight-start
+---
+id: my-doc-id
+title: میری دستاویز کا عنوان
+description: میری دستاویز کی تفصیل
+slug: /my-custom-url
+---
+// highlight-end
+
+## مارک ڈاؤن ہیڈنگ
+
+[لنکس](./hello.md) کے ساتھ مارک ڈاؤن ٹیکسٹ
+```
+
+## لنکس
+
+باقاعدہ مارک ڈاؤن لنکس سپورٹ کیے جاتے ہیں، یو آر ایل پاتھ یا متعلقہ فائل پاتھ کا استعمال کرتے ہوئے۔
+
+```md
+آئیے دیکھتے ہیں کہ [ایک صفحہ کیسے بنائیں](/create-a-page)۔
+```
+
+```md
+آئیے دیکھتے ہیں کہ [ایک صفحہ کیسے بنائیں](./create-a-page.md)۔
+```
+
+**نتیجہ:** آئیے دیکھتے ہیں کہ [ایک صفحہ کیسے بنائیں](./create-a-page.md)۔
+
+## تصاویر
+
+باقاعدہ مارک ڈاؤن تصاویر سپورٹ کی جاتی ہیں۔
+
+آپ اسٹیٹک ڈائریکٹری (`static/img/docusaurus.png`) میں تصاویر کا حوالہ دینے کے لیے مطلق پاتھ استعمال کر سکتے ہیں:
+
+```md
+![ڈوکوسارس لوگو](/img/docusaurus.png)
+```
+
+![ڈوکوسارس لوگو](/img/docusaurus.png)
+
+آپ موجودہ فائل کے لحاظ سے بھی تصاویر کا حوالہ دے سکتے ہیں۔ یہ خاص طور پر ان مارک ڈاؤن فائلوں کے قریب تصاویر کو رکھنے کے لیے مفید ہے جو انہیں استعمال کر رہی ہیں:
+
+```md
+![ڈوکوسارس لوگو](./img/docusaurus.png)
+```
+
+## کوڈ بلاکس
+
+مارک ڈاؤن کوڈ بلاکس کو Syntax ہائی لائٹنگ کے ساتھ سپورٹ کیا جاتا ہے۔
+
+````md
+```jsx title="src/components/HelloDocusaurus.js"
+function HelloDocusaurus() {
+  return <h1>ہیلو، ڈوکوسارس!</h1>;
+}
+```
+````
+
+```jsx title="src/components/HelloDocusaurus.js"
+function HelloDocusaurus() {
+  return <h1>ہیلو، ڈوکوسارس!</h1>;
+}
+```
+
+## اڈمونیشنز
+
+ڈوکوسارس میں اڈمونیشنز اور کال آؤٹس بنانے کے لیے ایک خاص Syntax ہے:
+
+```md
+:::tip میری ٹپ
+
+اس زبردست فیچر آپشن کا استعمال کریں۔
+
+:::
+
+:::danger احتیاط کریں
+
+یہ عمل خطرناک ہے۔
+
+:::
+```
+
+:::tip میری ٹپ
+
+اس زبردست فیچر آپشن کا استعمال کریں۔
+
+:::
+
+:::danger احتیاط کریں
+
+یہ عمل خطرناک ہے۔
+
+:::
+
+## MDX اور React اجزاء
+
+[MDX](https://mdxjs.com/) آپ کی دستاویزات کو مزید **انٹرایکٹو** بنا سکتا ہے اور مارک ڈاؤن کے اندر کسی بھی **React اجزاء** کو استعمال کرنے کی اجازت دیتا ہے:
+
+```jsx
+export const Highlight = ({children, color}) => (
+  <span
+    style={{
+      backgroundColor: color,
+      borderRadius: '20px',
+      color: '#fff',
+      padding: '10px',
+      cursor: 'pointer',
+    }}
+    onClick={() => {
+      alert(`آپ نے ${color} رنگ پر ${children} لیبل کے ساتھ کلک کیا`)
+    }}>
+    {children}
+  </span>
+);
+
+یہ <Highlight color="#25c2a0">ڈوکوسارس سبز</Highlight> ہے!
+
+یہ <Highlight color="#1877F2">فیس بک نیلا</Highlight> ہے!
+```
+
+export const Highlight = ({children, color}) => (
+  <span
+    style={{
+      backgroundColor: color,
+      borderRadius: '20px',
+      color: '#fff',
+      padding: '10px',
+      cursor: 'pointer',
+    }}
+    onClick={() => {
+      alert(`آپ نے ${color} رنگ پر ${children} لیبل کے ساتھ کلک کیا`);
+    }}>
+    {children}
+  </span>
+);
+
+یہ <Highlight color="#25c2a0">ڈوکوسارس سبز</Highlight> ہے!
+
+یہ <Highlight color="#1877F2">فیس بک نیلا</Highlight> ہے!

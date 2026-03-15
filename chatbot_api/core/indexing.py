@@ -106,6 +106,7 @@ def chunk_text(text: str, chunk_size: int = 200, overlap_size: int = 50):
     return chunks
 
 def index_documents():
+    setup_databases()  # Ensure collection exists with correct dimensions
     logging.info("Indexing documents...")
     total_chunks_indexed = 0
     try:

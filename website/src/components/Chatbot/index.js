@@ -49,11 +49,11 @@ const Chatbot = () => {
     setIsLoading(true);
 
     try {
-      console.log("3. Attempting to fetch from backend at https://aashra-my-rag-chatbot-api.hf.space/chat...");
-      const response = await fetch('https://aashra-my-rag-chatbot-api.hf.space/chat', {
+      console.log("3. Attempting to fetch from backend at http://localhost:8000/chat...");
+      const response = await fetch('http://localhost:8000/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query, selected_text: null }),
+        body: JSON.stringify({ question: query }), // Sending "question" as required by backend
       });
       console.log("4. Fetch call completed. Response received:", response);
 
@@ -66,7 +66,12 @@ const Chatbot = () => {
       const data = await response.json();
       console.log("6. JSON parsed:", data);
 
-      const botMessage = { sender: 'bot', text: data.response };
+      // Backend returns { results: [...] } so we join the results or take the first one
+      const responseText = data.results && data.results.length > 0 
+        ? data.results.join('\n\n') 
+        : "I couldn't find any relevant information for that question.";
+
+      const botMessage = { sender: 'bot', text: responseText };
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
       console.error('7. CATCH BLOCK: An error occurred:', error);
