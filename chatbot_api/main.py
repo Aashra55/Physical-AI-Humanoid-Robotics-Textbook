@@ -3,8 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Union
 import logging
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 from sentence_transformers import SentenceTransformer
 
 from core.settings import settings
@@ -14,8 +13,8 @@ from core.db import get_qdrant_client, get_db_connection
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Configure Gemini API Client
-client_genai = genai.Client(api_key=settings.GOOGLE_API_KEY)
+# Configure Gemini API
+genai.configure(api_key=settings.GOOGLE_API_KEY)
 
 app = FastAPI()
 
@@ -58,7 +57,6 @@ async def retrieve_context(question: str, top_k: int) -> List[str]:
         for hit in result:
             if hit.payload and "content" in hit.payload:
                 content = hit.payload["content"].strip()
-                # Simple de-duplication
                 if content[:50] not in seen:
                     context.append(content)
                     seen.add(content[:50])
@@ -78,8 +76,6 @@ async def chat(query: Query):
 
     # 2. Retrieve Context
     context_chunks = await retrieve_context(query.question, query.top_k)
-    
-    # Even if context is thin, let the LLM try to answer if it knows it's about the book
     context_str = "\n---\n".join(context_chunks) if context_chunks else "No specific context found."
 
     # 3. Generate RAG Response with Gemini
@@ -94,24 +90,19 @@ async def chat(query: Query):
             "If you are absolutely sure the topic is not related to the book at all, let the user know."
         )
 
-        # Use gemini-1.5-flash for better reliability
-        response = client_genai.models.generate_content(
-            model="gemini-1.5-flash", 
-            contents=f"Context from textbook:\n{context_str}\n\nUser Question: {query.question}",
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.7
-            )
+        model = genai.GenerativeModel(
+            model_name="gemini-2.5-pro",
+            system_instruction=system_instruction
+        )
+
+        response = model.generate_content(
+            f"Context from textbook:\n{context_str}\n\nUser Question: {query.question}"
         )
         
-        if not response.text:
-            raise ValueError("Empty response from Gemini")
-
         return {"response": response.text, "context": context_chunks}
 
     except Exception as e:
         logger.error(f"LLM failed: {e}")
-        # If we have context but LLM fails, at least show the context nicely
         if context_chunks:
             return {
                 "response": "I found some relevant sections in the book for you, though I had trouble generating a summary:\n\n" + "\n\n".join(context_chunks),
