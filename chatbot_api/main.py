@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Union
 import logging
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from sentence_transformers import SentenceTransformer
 
 from core.settings import settings
@@ -13,8 +14,8 @@ from core.db import get_qdrant_client, get_db_connection
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Configure Gemini API
-genai.configure(api_key=settings.GEMINI_API_KEY)
+# Configure Gemini API Client
+client_genai = genai.Client(api_key=settings.GOOGLE_API_KEY)
 
 app = FastAPI()
 
@@ -107,13 +108,13 @@ async def chat(query: Query):
             "If the answer isn't in the context, say you don't know based on the book materials."
         )
 
-        model = genai.GenerativeModel(
-            model_name=settings.LLM_MODEL,
-            system_instruction=system_instruction
-        )
-
-        response = model.generate_content(
-            f"Context:\n{context_str}\n\nQuestion: {query.question}"
+        # Use the new SDK's generate_content method
+        response = client_genai.models.generate_content(
+            model=settings.LLM_MODEL,
+            contents=f"Context:\n{context_str}\n\nQuestion: {query.question}",
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction
+            )
         )
         
         return {"response": response.text, "context": context_chunks}
