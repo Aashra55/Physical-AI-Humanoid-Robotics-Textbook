@@ -66,10 +66,15 @@ const Chatbot = () => {
       const data = await response.json();
       console.log("6. JSON parsed:", data);
 
-      // Backend returns { results: [...] } so we join the results or take the first one
-      const responseText = data.results && data.results.length > 0 
-        ? data.results.join('\n\n') 
-        : "I couldn't find any relevant information for that question.";
+      // Backend returns { results: [...] } or { response: "..." }
+      let responseText = "";
+      if (data.results && data.results.length > 0) {
+        responseText = data.results.join('\n\n');
+      } else if (data.response) {
+        responseText = data.response;
+      } else {
+        responseText = "I couldn't find any relevant information for that question.";
+      }
 
       const botMessage = { sender: 'bot', text: responseText };
       setMessages((prev) => [...prev, botMessage]);

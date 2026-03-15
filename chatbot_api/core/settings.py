@@ -1,6 +1,6 @@
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import os # Added for debug
+import os
 
 class Settings(BaseSettings):
     """
@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 
     # Environment-specific settings
-    GEMINI_API_KEY: str
+    GOOGLE_API_KEY: str
     QDRANT_URL: str
     QDRANT_API_KEY: str
     NEON_DB_URL: str
@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # Application settings
     QDRANT_COLLECTION_NAME: str = "rag_chatbot_collection"
     DOCS_PATH: str = "../website/docs"
+    LLM_MODEL: str = "gemini-pro"
 
     @field_validator('*', mode='before')
     @classmethod
@@ -30,7 +31,6 @@ class Settings(BaseSettings):
 # Create a single instance of the settings to be used throughout the application
 settings = Settings()
 
-# You can add a check to ensure all required settings are loaded
 def check_settings():
     """
     Validates that all necessary settings are loaded.

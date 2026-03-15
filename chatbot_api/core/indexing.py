@@ -6,32 +6,22 @@ import json
 import uuid
 from bs4 import BeautifulSoup
 import qdrant_client
-import psycopg2
+from qdrant_client.models import PointStruct, VectorParams, Distance
 from sentence_transformers import SentenceTransformer
 
 from .settings import settings
+from .db import get_db_connection, get_qdrant_client
 
-# --- 1. Database and Client Initialization ---
-
-def get_db_connection():
-    """Establishes a connection to the Neon Postgres database."""
-    conn = psycopg2.connect(settings.NEON_DB_URL)
-    return conn
-
-def get_qdrant_client():
-    """Initializes and returns the Qdrant client."""
-    client = qdrant_client.QdrantClient(
-        url=settings.QDRANT_URL,
-        api_key=settings.QDRANT_API_KEY,
-    )
-    return client
+# Configure basic logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def setup_databases():
     """
     Sets up the Postgres table and Qdrant collection. If the Qdrant collection
     exists with the wrong vector size, it is recreated.
     """
-    logging.info("Setting up databases...")
+    logger.info("Setting up databases...")
     try:
         # --- Setup Postgres ---
         conn = get_db_connection()
@@ -50,7 +40,7 @@ def setup_databases():
         conn.commit()
         cur.close()
         conn.close()
-        logging.info("Postgres 'documents' table ensured.")
+        logger.info("Postgres 'documents' table ensured.")
 
         # --- Setup Qdrant ---
         qdrant_cli = get_qdrant_client()
@@ -59,35 +49,35 @@ def setup_databases():
 
         try:
             collection_info = qdrant_cli.get_collection(collection_name=collection_name)
+            
+            # Check for standard vector size (not named vector for now to keep it simple and compatible with main.py)
             current_vector_size = collection_info.config.params.vectors.size
             
             if current_vector_size != correct_vector_size:
-                logging.info(f"Qdrant collection '{collection_name}' exists with the wrong vector size ({current_vector_size}). Deleting and recreating.")
+                logger.info(f"Qdrant collection '{collection_name}' exists with the wrong vector size ({current_vector_size}). Deleting and recreating.")
                 qdrant_cli.delete_collection(collection_name=collection_name)
                 qdrant_cli.create_collection(
                     collection_name=collection_name,
-                    vectors_config=qdrant_client.models.VectorParams(size=correct_vector_size, distance=qdrant_client.models.Distance.COSINE),
+                    vectors_config=VectorParams(size=correct_vector_size, distance=Distance.COSINE),
                 )
-                logging.info(f"Qdrant collection '{collection_name}' recreated with correct vector size ({correct_vector_size}).")
+                logger.info(f"Qdrant collection '{collection_name}' recreated with correct vector size ({correct_vector_size}).")
             else:
-                logging.info(f"Qdrant collection '{collection_name}' already exists with the correct vector size ({correct_vector_size}).")
+                logger.info(f"Qdrant collection '{collection_name}' already exists with the correct vector size ({correct_vector_size}).")
 
         except Exception: # If collection doesn't exist at all
-            logging.info(f"Qdrant collection '{collection_name}' does not exist. Creating it.")
+            logger.info(f"Qdrant collection '{collection_name}' does not exist. Creating it.")
             qdrant_cli.create_collection(
                 collection_name=collection_name,
-                vectors_config=qdrant_client.models.VectorParams(size=correct_vector_size, distance=qdrant_client.models.Distance.COSINE),
+                vectors_config=VectorParams(size=correct_vector_size, distance=Distance.COSINE),
             )
-            logging.info(f"Qdrant collection '{collection_name}' created with vector size ({correct_vector_size}).")
+            logger.info(f"Qdrant collection '{collection_name}' created with vector size ({correct_vector_size}).")
     except Exception as e:
-        logging.error(f"Error setting up databases: {e}", exc_info=True)
+        logger.error(f"Error setting up databases: {e}", exc_info=True)
 
 
-def chunk_text(text: str, chunk_size: int = 200, overlap_size: int = 50):
+def chunk_text(text: str, chunk_size: int = 500, overlap_size: int = 50):
     """
     Splits text into chunks of a specified size with overlap.
-    A more sophisticated chunking strategy may be needed for production.
-    TEMPORARILY REDUCED CHUNK_SIZE AND OVERLAP_SIZE FOR DEBUGGING.
     """
     if not text:
         return []
@@ -101,13 +91,11 @@ def chunk_text(text: str, chunk_size: int = 200, overlap_size: int = 50):
         if end_pos == len(text):
             break
         current_pos += chunk_size - overlap_size
-        if current_pos < 0: # Handle cases where overlap_size > chunk_size, or very small chunks
-            current_pos = 0
     return chunks
 
 def index_documents():
-    setup_databases()  # Ensure collection exists with correct dimensions
-    logging.info("Indexing documents...")
+    setup_databases() # Ensure collection exists with correct dimensions
+    logger.info("Indexing documents...")
     total_chunks_indexed = 0
     try:
         embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -117,9 +105,9 @@ def index_documents():
 
         cur = conn.cursor()
 
-        docs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "website", "docs"))
+        docs_path = os.path.abspath(settings.DOCS_PATH)
         markdown_files = glob.glob(os.path.join(docs_path, "**", "*.md"), recursive=True)
-        logging.info(f"Found {len(markdown_files)} Markdown files in {docs_path}")
+        logger.info(f"Found {len(markdown_files)} Markdown files in {docs_path}")
 
         for md_file in markdown_files:
             try:
@@ -131,7 +119,7 @@ def index_documents():
                 text = soup.get_text()
 
                 chunks = chunk_text(text)
-                logging.info(f"Processing file: {os.path.relpath(md_file, docs_path)} - Text length: {len(text)}, Generated {len(chunks)} chunks.")
+                logger.info(f"Processing file: {os.path.relpath(md_file, docs_path)} - Text length: {len(text)}, Generated {len(chunks)} chunks.")
 
                 source = os.path.relpath(md_file, docs_path)
 
@@ -151,20 +139,24 @@ def index_documents():
                         collection_name=collection_name,
                         wait=True,
                         points=[
-                            qdrant_client.models.PointStruct(
+                            PointStruct(
                                 id=str(doc_id),
                                 vector=embedding,
-                                payload={"source": source, "chunk_num": i},
+                                payload={"source": source, "chunk_num": i, "content": chunk},
                             )
                         ],
                     )
                     total_chunks_indexed += 1
             except Exception as file_e:
-                logging.error(f"Error processing file {os.path.relpath(md_file, docs_path)}: {file_e}", exc_info=True)
+                logger.error(f"Error processing file {os.path.relpath(md_file, docs_path)}: {file_e}", exc_info=True)
 
         conn.commit()
         cur.close()
         conn.close()
-        logging.info(f"Documents indexed successfully. Total chunks indexed: {total_chunks_indexed}")
+        logger.info(f"Documents indexed successfully. Total chunks indexed: {total_chunks_indexed}")
     except Exception as e:
-        logging.error(f"Error indexing documents: {e}", exc_info=True)
+        logger.error(f"Error indexing documents: {e}", exc_info=True)
+
+
+if __name__ == "__main__":
+    index_documents()
