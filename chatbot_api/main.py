@@ -53,13 +53,24 @@ async def retrieve_context(question: str, top_k: int) -> List[str]:
         ).points
         
         context = []
-        seen = set()
         for hit in result:
+            # First priority: Text from Qdrant payload
             if hit.payload and "content" in hit.payload:
-                content = hit.payload["content"].strip()
-                if content[:50] not in seen:
-                    context.append(content)
-                    seen.add(content[:50])
+                context.append(hit.payload["content"])
+            # Fallback: Query Postgres (if payload is too big or missing)
+            else:
+                try:
+                    conn = get_db_connection()
+                    cur = conn.cursor()
+                    cur.execute("SELECT content FROM documents WHERE id = %s", (str(hit.id),))
+                    row = cur.fetchone()
+                    if row:
+                        context.append(row[0])
+                    cur.close()
+                    conn.close()
+                except Exception as pg_err:
+                    logger.error(f"Postgres fallback failed: {pg_err}")
+                    
         return context
     except Exception as e:
         logger.error(f"Retrieval failed: {e}")
@@ -76,18 +87,19 @@ async def chat(query: Query):
 
     # 2. Retrieve Context
     context_chunks = await retrieve_context(query.question, query.top_k)
-    context_str = "\n---\n".join(context_chunks) if context_chunks else "No specific context found."
+    context_str = "\n---\n".join(context_chunks) if context_chunks else ""
 
     # 3. Generate RAG Response with Gemini
     try:
         system_instruction = (
-            "You are an expert AI tutor for the 'Physical AI & Humanoid Robotics' textbook. "
-            "Your goal is to provide helpful, clear, and educational answers. "
-            "Use the provided context from the book to answer. "
-            "CRITICAL: Do not just copy and paste the context directly. Instead, rephrase and compose the information in your own words to explain it clearly and naturally to the user. "
-            "If the context is missing or thin, use your general knowledge of Robotics and Physical AI to supplement the answer, "
-            "but always keep the tone consistent with a textbook assistant. "
-            "If you are absolutely sure the topic is not related to the book at all, let the user know."
+            "You are the official 'Physical AI & Humanoid Robotics Textbook' Assistant. "
+            "Your primary source of truth is the 'Book Context' provided below. "
+            "1. ALWAYS try to find the answer in the provided context first. "
+            "2. If you find the answer, rephrase it clearly in your own words. DO NOT copy-paste directly. "
+            "3. If the context is empty or doesn't mention the topic specifically, "
+            "provide a high-quality explanation based on standard Robotics knowledge, "
+            "but explain it as a core concept of the textbook's curriculum. "
+            "4. Never start your response by saying 'The provided context doesn't mention...'. Just provide the best helpful answer."
         )
 
         model = genai.GenerativeModel(
@@ -95,19 +107,15 @@ async def chat(query: Query):
             system_instruction=system_instruction
         )
 
-        response = model.generate_content(
-            f"Context from textbook:\n{context_str}\n\nUser Question: {query.question}"
-        )
+        # Better formatting for the prompt
+        prompt = f"Book Context:\n{context_str}\n\nUser Question: {query.question}\n\nHelpful Response:"
+        
+        response = model.generate_content(prompt)
         
         return {"response": response.text, "context": context_chunks}
 
     except Exception as e:
         logger.error(f"LLM failed: {e}")
-        if context_chunks:
-            return {
-                "response": "I found some relevant sections in the book for you, though I had trouble generating a summary:\n\n" + "\n\n".join(context_chunks),
-                "context": context_chunks
-            }
         return {"response": "I'm sorry, I'm having trouble processing that request right now."}
 
 # ---------- HEALTH ----------

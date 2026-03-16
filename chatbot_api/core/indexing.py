@@ -18,8 +18,7 @@ logger = logging.getLogger(__name__)
 
 def setup_databases():
     """
-    Sets up the Postgres table and Qdrant collection. If the Qdrant collection
-    exists with the wrong vector size, it is recreated.
+    Sets up the Postgres table and Qdrant collection.
     """
     logger.info("Setting up databases...")
     try:
@@ -45,43 +44,35 @@ def setup_databases():
         # --- Setup Qdrant ---
         qdrant_cli = get_qdrant_client()
         collection_name = settings.QDRANT_COLLECTION_NAME
-        correct_vector_size = 384  # Vector size for all-MiniLM-L6-v2
+        correct_vector_size = 384
 
         try:
             collection_info = qdrant_cli.get_collection(collection_name=collection_name)
-            
-            # Check for standard vector size (not named vector for now to keep it simple and compatible with main.py)
             current_vector_size = collection_info.config.params.vectors.size
-            
             if current_vector_size != correct_vector_size:
-                logger.info(f"Qdrant collection '{collection_name}' exists with the wrong vector size ({current_vector_size}). Deleting and recreating.")
+                logger.info(f"Recreating collection {collection_name} for correct size.")
                 qdrant_cli.delete_collection(collection_name=collection_name)
                 qdrant_cli.create_collection(
                     collection_name=collection_name,
                     vectors_config=VectorParams(size=correct_vector_size, distance=Distance.COSINE),
                 )
-                logger.info(f"Qdrant collection '{collection_name}' recreated with correct vector size ({correct_vector_size}).")
-            else:
-                logger.info(f"Qdrant collection '{collection_name}' already exists with the correct vector size ({correct_vector_size}).")
-
-        except Exception: # If collection doesn't exist at all
-            logger.info(f"Qdrant collection '{collection_name}' does not exist. Creating it.")
+        except Exception:
+            logger.info(f"Creating new collection {collection_name}.")
             qdrant_cli.create_collection(
                 collection_name=collection_name,
                 vectors_config=VectorParams(size=correct_vector_size, distance=Distance.COSINE),
             )
-            logger.info(f"Qdrant collection '{collection_name}' created with vector size ({correct_vector_size}).")
     except Exception as e:
-        logger.error(f"Error setting up databases: {e}", exc_info=True)
+        logger.error(f"Error setting up databases: {e}")
 
 
-def chunk_text(text: str, chunk_size: int = 500, overlap_size: int = 50):
+def chunk_text(text: str, chunk_size: int = 1000, overlap_size: int = 100):
     """
     Splits text into chunks of a specified size with overlap.
+    Increased chunk size for better context.
     """
     if not text:
         return []
-
     chunks = []
     current_pos = 0
     while current_pos < len(text):
@@ -94,7 +85,7 @@ def chunk_text(text: str, chunk_size: int = 500, overlap_size: int = 50):
     return chunks
 
 def index_documents():
-    setup_databases() # Ensure collection exists with correct dimensions
+    setup_databases()
     logger.info("Indexing documents...")
     total_chunks_indexed = 0
     try:
@@ -107,7 +98,7 @@ def index_documents():
 
         docs_path = os.path.abspath(settings.DOCS_PATH)
         markdown_files = glob.glob(os.path.join(docs_path, "**", "*.md"), recursive=True)
-        logger.info(f"Found {len(markdown_files)} Markdown files in {docs_path}")
+        logger.info(f"Found {len(markdown_files)} Markdown files.")
 
         for md_file in markdown_files:
             try:
@@ -119,8 +110,6 @@ def index_documents():
                 text = soup.get_text()
 
                 chunks = chunk_text(text)
-                logger.info(f"Processing file: {os.path.relpath(md_file, docs_path)} - Text length: {len(text)}, Generated {len(chunks)} chunks.")
-
                 source = os.path.relpath(md_file, docs_path)
 
                 for i, chunk in enumerate(chunks):
@@ -128,13 +117,11 @@ def index_documents():
                     embedding = embedding_model.encode(chunk).tolist()
 
                     cur.execute(
-                        """
-                        INSERT INTO documents (id, content, source, chunk_num)
-                        VALUES (%s, %s, %s, %s)
-                        """,
+                        "INSERT INTO documents (id, content, source, chunk_num) VALUES (%s, %s, %s, %s)",
                         (str(doc_id), chunk, source, i)
                     )
 
+                    # CRITICAL: Store the actual text in the payload
                     qdrant_cli.upsert(
                         collection_name=collection_name,
                         wait=True,
@@ -148,15 +135,14 @@ def index_documents():
                     )
                     total_chunks_indexed += 1
             except Exception as file_e:
-                logger.error(f"Error processing file {os.path.relpath(md_file, docs_path)}: {file_e}", exc_info=True)
+                logger.error(f"Error processing file {md_file}: {file_e}")
 
         conn.commit()
         cur.close()
         conn.close()
-        logger.info(f"Documents indexed successfully. Total chunks indexed: {total_chunks_indexed}")
+        logger.info(f"Successfully indexed {total_chunks_indexed} chunks.")
     except Exception as e:
-        logger.error(f"Error indexing documents: {e}", exc_info=True)
-
+        logger.error(f"Error indexing documents: {e}")
 
 if __name__ == "__main__":
     index_documents()
