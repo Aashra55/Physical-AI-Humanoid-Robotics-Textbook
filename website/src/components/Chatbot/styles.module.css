@@ -121,3 +121,70 @@
   background-color: var(--ifm-color-emphasis-500);
   cursor: not-allowed;
 }
+
+/* Modal / Dialog Styles */
+.modalOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  z-index: 1100;
+}
+
+.modal {
+  background-color: var(--ifm-background-color);
+  padding: 20px;
+  border-radius: 8px;
+  width: 80%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+.modal h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.modal p {
+  margin-bottom: 20px;
+  font-size: 0.9em;
+}
+
+.modalButtons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.confirmBtn {
+  background-color: #ff4d4d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.cancelBtn {
+  background-color: var(--ifm-color-emphasis-300);
+  color: var(--ifm-font-color-base);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.confirmBtn:hover {
+  background-color: #ff3333;
+}
+
+.cancelBtn:hover {
+  background-color: var(--ifm-color-emphasis-400);
+}

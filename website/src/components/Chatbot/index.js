@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { MdDelete } from 'react-icons/md';
 import styles from './styles.module.css';
 
 // Chatbot icon (speech bubble)
@@ -13,77 +14,77 @@ const Chatbot = () => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false); // New state for dialog
   const chatEndRef = useRef(null);
+
+  // 1. Load messages from localStorage on startup
+  useEffect(() => {
+    const savedMessages = localStorage.getItem('chatbot_history');
+    if (savedMessages) {
+      try {
+        setMessages(JSON.parse(savedMessages));
+      } catch (e) {
+        console.error("Failed to parse chat history", e);
+      }
+    } else {
+      setMessages([{ sender: 'bot', text: 'Hello! How can I help you with the content of this book?' }]);
+    }
+  }, []);
+
+  // 2. Save messages to localStorage
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem('chatbot_history', JSON.stringify(messages));
+    }
+    scrollToBottom();
+  }, [messages]);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
   const toggleChat = () => {
     setIsOpen(!isOpen);
-    if (!isOpen) {
-      setMessages([{ sender: 'bot', text: 'Hello! How can I help you with the content of this book?' }]);
-    }
+  };
+
+  // 3. Clear Chat logic with custom dialog
+  const handleClearChat = () => {
+    localStorage.removeItem('chatbot_history');
+    setMessages([{ sender: 'bot', text: 'Hello! How can I help you with the content of this book?' }]);
+    setShowConfirm(false);
   };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    console.log("1. handleSendMessage started.");
-    if (!inputValue.trim()) {
-      console.log("Input is empty, returning.");
-      return;
-    }
+    if (!inputValue.trim()) return;
 
     const userMessage = { sender: 'user', text: inputValue };
-    setMessages((prev) => [...prev, userMessage]);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     
-    // Use a temporary variable for the query to avoid a race condition
     const query = inputValue;
     setInputValue('');
-    
-    console.log("2. Set isLoading to true.");
     setIsLoading(true);
 
     try {
-      console.log("3. Attempting to fetch from backend at http://127.0.0.1:8000/chat...");
       const response = await fetch('http://127.0.0.1:8000/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: query }), // Sending "question" as required by backend
+        body: JSON.stringify({ question: query }),
       });
-      console.log("4. Fetch call completed. Response received:", response);
 
       if (!response.ok) {
-        console.error("5a. Response was not OK. Status:", response.status);
         throw new Error(`API request failed with status ${response.status}`);
       }
 
-      console.log("5b. Response is OK. Parsing JSON...");
       const data = await response.json();
-      console.log("6. JSON parsed:", data);
-
-      // Backend returns { results: [...] } or { response: "..." }
-      let responseText = "";
-      if (data.results && data.results.length > 0) {
-        responseText = data.results.join('\n\n');
-      } else if (data.response) {
-        responseText = data.response;
-      } else {
-        responseText = "I couldn't find any relevant information for that question.";
-      }
-
-      const botMessage = { sender: 'bot', text: responseText };
+      const botMessage = { sender: 'bot', text: data.response || "I'm sorry, I couldn't process that." };
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
-      console.error('7. CATCH BLOCK: An error occurred:', error);
+      console.error('An error occurred:', error);
       const errorMessage = { sender: 'bot', text: 'Sorry, I am having trouble connecting to the server.' };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
-      console.log("8. FINALLY BLOCK: Set isLoading to false.");
       setIsLoading(false);
     }
   };
@@ -96,8 +97,44 @@ const Chatbot = () => {
 
       {isOpen && (
         <div className={styles.chatWindow}>
+          {/* Custom Confirmation Dialog Overlay */}
+          {showConfirm && (
+            <div className={styles.modalOverlay}>
+              <div className={styles.modal}>
+                <h4>Clear History?</h4>
+                <p>Are you sure you want to delete all messages? This cannot be undone.</p>
+                <div className={styles.modalButtons}>
+                  <button className={styles.confirmBtn} onClick={handleClearChat}>Delete</button>
+                  <button className={styles.cancelBtn} onClick={() => setShowConfirm(false)}>Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className={styles.chatHeader}>
-            <h3>RAG Chatbot</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h3>RAG Chatbot</h3>
+              <button 
+                onClick={() => setShowConfirm(true)} 
+                className={styles.clearButton}
+                title="Delete all messages"
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  color: '#ff4d4d', 
+                  cursor: 'pointer', 
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  transition: 'background 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 77, 77, 0.1)'}
+                onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+              >
+                <MdDelete size={20} />
+              </button>
+            </div>
             <button onClick={toggleChat} className={styles.closeButton}>&times;</button>
           </div>
           <div className={styles.chatMessages}>
